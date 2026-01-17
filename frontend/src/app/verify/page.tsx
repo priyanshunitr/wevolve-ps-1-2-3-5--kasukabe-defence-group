@@ -1,31 +1,95 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FileText, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/layout/Layout';
 import ConfidenceBadge from '@/components/common/ConfidenceBadge';
 import SkillBadge from '@/components/common/SkillBadge';
-import { useResume } from '@/contexts/ResumeContext';
-import { sampleParsedResume, ParsedResume } from '@/data/mockData';
+import { useResume, ParsedResumeFrontend, transformFrontendToApi } from '@/contexts/ResumeContext';
+import { saveResume, APIError } from '@/services/api';
 
-const VerifyPage = () => {
-  const navigate = useNavigate();
+// Sample data for when no resume has been parsed
+const sampleParsedResume: ParsedResumeFrontend = {
+  name: 'Alex Johnson',
+  email: 'alex.johnson@email.com',
+  phone: '(555) 123-4567',
+  skills: [
+    { name: 'React', confidence: 95 },
+    { name: 'JavaScript', confidence: 92 },
+    { name: 'TypeScript', confidence: 88 },
+    { name: 'CSS', confidence: 90 },
+    { name: 'Node.js', confidence: 75 },
+    { name: 'Git', confidence: 85 },
+    { name: 'REST APIs', confidence: 82 }
+  ],
+  experience: [
+    {
+      title: 'Frontend Developer',
+      company: 'TechStart Inc.',
+      duration: '2021 - Present',
+      description: 'Developed and maintained React applications, improving performance by 40%.',
+      confidence: 92
+    },
+    {
+      title: 'Junior Developer',
+      company: 'WebAgency',
+      duration: '2019 - 2021',
+      description: 'Built responsive websites using modern JavaScript frameworks.',
+      confidence: 65
+    }
+  ],
+  education: [
+    {
+      degree: 'B.S. Computer Science',
+      institution: 'State University',
+      year: '2019',
+      confidence: 95
+    }
+  ],
+  projects: [
+    {
+      name: 'E-commerce Platform',
+      description: 'Full-stack e-commerce solution with React and Node.js',
+      technologies: ['React', 'Node.js', 'MongoDB'],
+      confidence: 88
+    },
+    {
+      name: 'Task Management App',
+      description: 'Real-time collaborative task management application',
+      technologies: ['React', 'Firebase', 'TypeScript'],
+      confidence: 62
+    }
+  ],
+  preferredLocations: [],
+  preferredRoles: [],
+  expectedSalary: null,
+  nameConfidence: 98,
+  emailConfidence: 95,
+  phoneConfidence: 72,
+  yearsOfExperience: 4
+};
+
+export default function VerifyPage() {
+  const router = useRouter();
   const { toast } = useToast();
-  const { resumeFile, parsedResume, setParsedResume, setIsVerified } = useResume();
-  const [formData, setFormData] = useState<ParsedResume>(parsedResume || sampleParsedResume);
+  const { resumeFile, parsedResume, setParsedResume, candidateId, setIsVerified } = useResume();
+  const [formData, setFormData] = useState<ParsedResumeFrontend>(parsedResume || sampleParsedResume);
   const [newSkill, setNewSkill] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!parsedResume) {
-      setParsedResume(sampleParsedResume);
       setFormData(sampleParsedResume);
+    } else {
+      setFormData(parsedResume);
     }
-  }, [parsedResume, setParsedResume]);
+  }, [parsedResume]);
 
   const handleAddSkill = () => {
     if (newSkill.trim()) {
@@ -44,14 +108,35 @@ const VerifyPage = () => {
     }));
   };
 
-  const handleSave = () => {
-    setParsedResume(formData);
-    setIsVerified(true);
-    toast({
-      title: 'Resume Verified',
-      description: 'Your resume data has been saved successfully.',
-    });
-    navigate('/gap-analysis');
+  const handleSave = async () => {
+    setIsSaving(true);
+
+    try {
+      // If we have a candidateId from API, save to backend
+      if (candidateId) {
+        const apiData = transformFrontendToApi(formData);
+        await saveResume(candidateId, apiData);
+      }
+
+      setParsedResume(formData);
+      setIsVerified(true);
+
+      toast({
+        title: 'Resume Verified',
+        description: 'Your resume data has been saved successfully.',
+      });
+
+      router.push('/gap-analysis');
+    } catch (err) {
+      const message = err instanceof APIError ? err.message : 'Failed to save resume. Please try again.';
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -100,7 +185,7 @@ const VerifyPage = () => {
               className="bg-card border border-border rounded-2xl p-6 h-[600px] overflow-y-auto"
             >
               <h2 className="font-semibold mb-6">Parsed Information</h2>
-              
+
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="space-y-4">
@@ -235,9 +320,13 @@ const VerifyPage = () => {
                 </div>
               </div>
 
-              <Button onClick={handleSave} className="w-full mt-6 py-6 rounded-xl">
+              <Button
+                onClick={handleSave}
+                className="w-full mt-6 py-6 rounded-xl"
+                disabled={isSaving}
+              >
                 <CheckCircle2 className="w-5 h-5 mr-2" />
-                Confirm & Save
+                {isSaving ? 'Saving...' : 'Confirm & Save'}
               </Button>
             </motion.div>
           </div>
@@ -245,6 +334,4 @@ const VerifyPage = () => {
       </div>
     </Layout>
   );
-};
-
-export default VerifyPage;
+}

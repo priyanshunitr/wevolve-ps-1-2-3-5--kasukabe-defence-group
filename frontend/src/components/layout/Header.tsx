@@ -1,5 +1,8 @@
+'use client';
+
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Sparkles, Sun, Moon, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +15,12 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ showMobileMenu, onToggleMobileMenu }) => {
   const { theme, toggleTheme } = useTheme();
-  const location = useLocation();
+  const pathname = usePathname();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const navLinks = [
     { path: '/', label: 'Home' },
@@ -21,7 +29,7 @@ const Header: React.FC<HeaderProps> = ({ showMobileMenu, onToggleMobileMenu }) =
     { path: '/jobs', label: 'Find Jobs' }
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => pathname === path;
 
   return (
     <motion.header
@@ -33,7 +41,7 @@ const Header: React.FC<HeaderProps> = ({ showMobileMenu, onToggleMobileMenu }) =
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link href="/" className="flex items-center gap-2 group">
             <motion.div
               whileHover={{ rotate: 180 }}
               transition={{ duration: 0.5 }}
@@ -51,12 +59,11 @@ const Header: React.FC<HeaderProps> = ({ showMobileMenu, onToggleMobileMenu }) =
             {navLinks.map((link) => (
               <Link
                 key={link.path}
-                to={link.path}
+                href={link.path}
                 className="relative px-4 py-2"
               >
-                <span className={`text-sm font-medium transition-colors ${
-                  isActive(link.path) ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-                }`}>
+                <span className={`text-sm font-medium transition-colors ${isActive(link.path) ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  }`}>
                   {link.label}
                 </span>
                 {isActive(link.path) && (
@@ -78,18 +85,22 @@ const Header: React.FC<HeaderProps> = ({ showMobileMenu, onToggleMobileMenu }) =
               onClick={toggleTheme}
               className="rounded-full"
             >
-              <motion.div
-                key={theme}
-                initial={{ scale: 0, rotate: -180 }}
-                animate={{ scale: 1, rotate: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                {theme === 'light' ? (
-                  <Moon className="w-5 h-5" />
-                ) : (
-                  <Sun className="w-5 h-5" />
-                )}
-              </motion.div>
+              {mounted ? (
+                <motion.div
+                  key={theme}
+                  initial={{ scale: 0, rotate: -180 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {theme === 'light' ? (
+                    <Moon className="w-5 h-5" />
+                  ) : (
+                    <Sun className="w-5 h-5" />
+                  )}
+                </motion.div>
+              ) : (
+                <div className="w-5 h-5" />
+              )}
             </Button>
 
             <Button
@@ -115,13 +126,12 @@ const Header: React.FC<HeaderProps> = ({ showMobileMenu, onToggleMobileMenu }) =
               {navLinks.map((link) => (
                 <Link
                   key={link.path}
-                  to={link.path}
+                  href={link.path}
                   onClick={onToggleMobileMenu}
-                  className={`px-4 py-3 rounded-lg transition-colors ${
-                    isActive(link.path)
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
+                  className={`px-4 py-3 rounded-lg transition-colors ${isActive(link.path)
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                    }`}
                 >
                   {link.label}
                 </Link>

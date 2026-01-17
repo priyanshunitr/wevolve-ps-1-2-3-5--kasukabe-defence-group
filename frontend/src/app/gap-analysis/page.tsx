@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Target, TrendingUp, BookOpen, ChevronDown, ChevronRight, Clock, Zap } from 'lucide-react';
@@ -6,11 +8,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import Layout from '@/components/layout/Layout';
 import SkillBadge from '@/components/common/SkillBadge';
 import MatchScoreRing from '@/components/common/MatchScoreRing';
-import { useResume } from '@/contexts/ResumeContext';
-import { targetRoles, skillTaxonomy, sampleParsedResume } from '@/data/mockData';
+import { useResume, ParsedResumeFrontend } from '@/contexts/ResumeContext';
+import { targetRoles, skillTaxonomy } from '@/data/mockData';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from 'recharts';
 
-const GapAnalysisPage = () => {
+// Sample data for when no resume has been parsed
+const sampleParsedResume: ParsedResumeFrontend = {
+  name: 'Alex Johnson',
+  email: 'alex.johnson@email.com',
+  phone: '(555) 123-4567',
+  skills: [
+    { name: 'React', confidence: 95 },
+    { name: 'JavaScript', confidence: 92 },
+    { name: 'TypeScript', confidence: 88 },
+    { name: 'CSS', confidence: 90 },
+    { name: 'Node.js', confidence: 75 },
+    { name: 'Git', confidence: 85 },
+    { name: 'REST APIs', confidence: 82 }
+  ],
+  experience: [],
+  education: [],
+  projects: [],
+  preferredLocations: [],
+  preferredRoles: [],
+  expectedSalary: null,
+  nameConfidence: 98,
+  emailConfidence: 95,
+  phoneConfidence: 72,
+  yearsOfExperience: 4
+};
+
+export default function GapAnalysisPage() {
   const { parsedResume } = useResume();
   const resume = parsedResume || sampleParsedResume;
   const [selectedRoleId, setSelectedRoleId] = useState<string>('senior-frontend');
@@ -28,7 +56,7 @@ const GapAnalysisPage = () => {
     const required = selectedRole.requiredSkills;
     const matched = currentSkills.filter(s => required.includes(s));
     const missing = required.filter(s => !currentSkills.includes(s));
-    
+
     const gapPercentage = Math.round((missing.length / required.length) * 100);
     const readinessScore = Math.round(100 - gapPercentage);
 
@@ -43,21 +71,21 @@ const GapAnalysisPage = () => {
 
   const radarData = useMemo(() => {
     const categories = ['Frontend', 'Backend', 'DevOps', 'Database', 'Soft Skills', 'Architecture'];
-    
+
     return categories.map(category => {
       const relevantRequired = selectedRole.requiredSkills.filter(
-        skill => skillTaxonomy[skill]?.category === category || 
-                (category === 'Soft Skills' && ['Communication', 'Team Leadership', 'Agile'].includes(skill))
+        skill => skillTaxonomy[skill]?.category === category ||
+          (category === 'Soft Skills' && ['Communication', 'Team Leadership', 'Agile'].includes(skill))
       );
       const relevantCurrent = currentSkills.filter(
         skill => skillTaxonomy[skill]?.category === category ||
-                (category === 'Soft Skills' && ['Communication', 'Team Leadership', 'Agile'].includes(skill))
+          (category === 'Soft Skills' && ['Communication', 'Team Leadership', 'Agile'].includes(skill))
       );
-      
+
       return {
         subject: category,
         required: relevantRequired.length > 0 ? 100 : 0,
-        current: relevantCurrent.length > 0 
+        current: relevantCurrent.length > 0
           ? Math.min(100, (relevantCurrent.length / Math.max(1, relevantRequired.length)) * 100)
           : (relevantCurrent.length > 0 ? 50 : 0)
       };
@@ -215,8 +243,8 @@ const GapAnalysisPage = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
                     <PolarGrid stroke="hsl(var(--border))" />
-                    <PolarAngleAxis 
-                      dataKey="subject" 
+                    <PolarAngleAxis
+                      dataKey="subject"
                       tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
                     />
                     <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} />
@@ -248,7 +276,7 @@ const GapAnalysisPage = () => {
               className="bg-card border border-border rounded-2xl p-6"
             >
               <h2 className="font-semibold mb-6">Skills Breakdown</h2>
-              
+
               <div className="space-y-6">
                 <div>
                   <h3 className="text-sm font-medium text-success mb-3 flex items-center gap-2">
@@ -318,11 +346,10 @@ const GapAnalysisPage = () => {
                       className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                          phase.priority === 'High' ? 'bg-success/20 text-success' :
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${phase.priority === 'High' ? 'bg-success/20 text-success' :
                           phase.priority === 'Medium' ? 'bg-warning/20 text-warning-foreground' :
-                          'bg-muted text-muted-foreground'
-                        }`}>
+                            'bg-muted text-muted-foreground'
+                          }`}>
                           {index + 1}
                         </div>
                         <div className="text-left">
@@ -332,11 +359,10 @@ const GapAnalysisPage = () => {
                               <Clock className="w-3 h-3" />
                               ~{phase.durationMonths} months
                             </span>
-                            <span className={`px-2 py-0.5 rounded text-xs ${
-                              phase.priority === 'High' ? 'bg-success/20 text-success' :
+                            <span className={`px-2 py-0.5 rounded text-xs ${phase.priority === 'High' ? 'bg-success/20 text-success' :
                               phase.priority === 'Medium' ? 'bg-warning/20 text-warning-foreground' :
-                              'bg-muted'
-                            }`}>
+                                'bg-muted'
+                              }`}>
                               {phase.priority} Priority
                             </span>
                           </div>
@@ -387,4 +413,4 @@ const GapAnalysisPage = () => {
   );
 };
 
-export default GapAnalysisPage;
+

@@ -1,6 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
+"use client";
+
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, LayoutGrid, List, SlidersHorizontal, X, Briefcase } from 'lucide-react';
+import { Search, Filter, LayoutGrid, List, SlidersHorizontal, X, Briefcase, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,13 +10,40 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import Layout from '@/components/layout/Layout';
 import JobCard from '@/components/jobs/JobCard';
 import JobFilters, { FilterState } from '@/components/jobs/JobFilters';
-import { mockJobs } from '@/data/mockData';
+import { mockJobs, Job } from '@/data/mockData';
+import { getJobs, calculateMatches, APIError } from '@/services/api';
+import { JobAPI } from '@/types/api';
+import { useResume } from '@/contexts/ResumeContext';
 
-const JobsPage = () => {
+// Transform API job to frontend Job format
+function transformApiJobToFrontend(apiJob: JobAPI, matchScore: number = 70): Job {
+  return {
+    id: String(apiJob.id),
+    title: apiJob.title,
+    company: apiJob.company,
+    location: apiJob.location,
+    salary: {
+      min: apiJob.salary_min,
+      max: apiJob.salary_max,
+    },
+    skills: [...apiJob.required_skills, ...apiJob.nice_to_have_skills],
+    type: apiJob.is_remote ? 'Remote' : 'Full-time',
+    experience: apiJob.min_experience_years,
+    description: apiJob.description,
+    matchScore: matchScore,
+    postedDate: new Date(),
+  };
+}
+
+export default function JobsPage() {
+  const { parsedResume } = useResume();
   const [search, setSearch] = useState('');
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState('match');
   const [showFilters, setShowFilters] = useState(false);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     locations: [],
     experience: [0, 10],
@@ -24,8 +53,66 @@ const JobsPage = () => {
     postedDate: 'all'
   });
 
+  // Fetch jobs from API on mount
+  useEffect(() => {
+    async function fetchJobs() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Fetch jobs from backend
+        const response = await getJobs();
+
+        // Get candidate skills for matching
+        const candidateSkills = parsedResume?.skills.map(s => s.name) || [];
+
+        // If we have candidate skills, calculate match scores
+        let jobsWithScores: Job[] = [];
+
+        if (candidateSkills.length > 0 && response.jobs.length > 0) {
+          try {
+            const matchResults = await calculateMatches({
+              candidate_skills: candidateSkills,
+              candidate_experience_years: parsedResume?.yearsOfExperience,
+            });
+
+            // Map match results to jobs
+            jobsWithScores = response.jobs.map(apiJob => {
+              const matchResult = matchResults.find(m => m.job_id === apiJob.id);
+              return transformApiJobToFrontend(apiJob, matchResult?.total_score || 60);
+            });
+          } catch {
+            // If matching fails, just use default scores
+            jobsWithScores = response.jobs.map(apiJob => transformApiJobToFrontend(apiJob, 70));
+          }
+        } else {
+          // No resume parsed, use default scores
+          jobsWithScores = response.jobs.map(apiJob => transformApiJobToFrontend(apiJob, 70));
+        }
+
+        // If API returned no jobs, fall back to mock data
+        if (jobsWithScores.length === 0) {
+          setJobs(mockJobs);
+        } else {
+          setJobs(jobsWithScores);
+        }
+      } catch (err) {
+        console.error('Failed to fetch jobs:', err);
+        // Fall back to mock data on error
+        setJobs(mockJobs);
+        if (err instanceof APIError) {
+          setError(err.message);
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchJobs();
+  }, [parsedResume]);
+
   const filteredJobs = useMemo(() => {
-    let result = [...mockJobs];
+    let result = [...jobs];
 
     // Search filter
     if (search) {
@@ -49,9 +136,9 @@ const JobsPage = () => {
       job => job.experience >= filters.experience[0] && job.experience <= filters.experience[1]
     );
 
-    // Salary filter
+    // Salary filter (convert to same unit - assuming backend uses INR)
     result = result.filter(
-      job => job.salary.min >= filters.salary[0] && job.salary.max <= filters.salary[1]
+      job => job.salary.min >= filters.salary[0] && job.salary.max <= filters.salary[1] * 100
     );
 
     // Skills filter
@@ -64,24 +151,6 @@ const JobsPage = () => {
     // Job type filter
     if (filters.jobTypes.length > 0) {
       result = result.filter(job => filters.jobTypes.includes(job.type));
-    }
-
-    // Posted date filter
-    if (filters.postedDate !== 'all') {
-      const now = new Date();
-      const cutoff = new Date();
-      switch (filters.postedDate) {
-        case '24h':
-          cutoff.setDate(now.getDate() - 1);
-          break;
-        case 'week':
-          cutoff.setDate(now.getDate() - 7);
-          break;
-        case 'month':
-          cutoff.setMonth(now.getMonth() - 1);
-          break;
-      }
-      result = result.filter(job => job.postedDate >= cutoff);
     }
 
     // Sort
@@ -101,7 +170,7 @@ const JobsPage = () => {
     }
 
     return result;
-  }, [search, filters, sortBy]);
+  }, [search, filters, sortBy, jobs]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -129,7 +198,7 @@ const JobsPage = () => {
           >
             <h1 className="text-3xl md:text-4xl font-bold mb-4">Discover Your Next Role</h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Browse {mockJobs.length}+ opportunities matched to your profile
+              Browse {jobs.length}+ opportunities matched to your profile
             </p>
           </motion.div>
 
@@ -266,58 +335,63 @@ const JobsPage = () => {
               transition={{ delay: 0.3 }}
               className="flex-1"
             >
-              <AnimatePresence mode="wait">
-                {filteredJobs.length === 0 ? (
-                  <motion.div
-                    key="empty"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-center py-16"
-                  >
-                    <Briefcase className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Try adjusting your search or filters
-                    </p>
-                    <Button variant="outline" onClick={() => {
-                      setSearch('');
-                      setFilters({
-                        locations: [],
-                        experience: [0, 10],
-                        salary: [0, 300000],
-                        skills: [],
-                        jobTypes: [],
-                        postedDate: 'all'
-                      });
-                    }}>
-                      Clear all
-                    </Button>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key={`${view}-${sortBy}`}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className={
-                      view === 'grid'
-                        ? 'grid sm:grid-cols-2 xl:grid-cols-3 gap-5'
-                        : 'space-y-4'
-                    }
-                  >
-                    {filteredJobs.map((job, index) => (
-                      <JobCard key={job.id} job={job} view={view} index={index} />
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {isLoading ? (
+                <div className="flex items-center justify-center py-16">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  <span className="ml-3 text-muted-foreground">Loading jobs...</span>
+                </div>
+              ) : (
+                <AnimatePresence mode="wait">
+                  {filteredJobs.length === 0 ? (
+                    <motion.div
+                      key="empty"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center py-16"
+                    >
+                      <Briefcase className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">No jobs found</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Try adjusting your search or filters
+                      </p>
+                      <Button variant="outline" onClick={() => {
+                        setSearch('');
+                        setFilters({
+                          locations: [],
+                          experience: [0, 10],
+                          salary: [0, 300000],
+                          skills: [],
+                          jobTypes: [],
+                          postedDate: 'all'
+                        });
+                      }}>
+                        Clear all
+                      </Button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key={`${view}-${sortBy}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className={
+                        view === 'grid'
+                          ? 'grid sm:grid-cols-2 xl:grid-cols-3 gap-5'
+                          : 'space-y-4'
+                      }
+                    >
+                      {filteredJobs.map((job, index) => (
+                        <JobCard key={job.id} job={job} view={view} index={index} />
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
             </motion.div>
           </div>
         </div>
       </div>
     </Layout>
   );
-};
-
-export default JobsPage;
+}

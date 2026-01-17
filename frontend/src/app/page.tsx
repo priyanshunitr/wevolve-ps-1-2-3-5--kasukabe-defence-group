@@ -1,5 +1,7 @@
+"use client";
+
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Upload, Target, Briefcase, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,7 +32,7 @@ const steps = [
   { number: '04', title: 'Discover Jobs', description: 'Get matched roles' }
 ];
 
-const Index = () => {
+export default function Home() {
   return (
     <Layout>
       {/* Hero Section */}
@@ -80,13 +82,13 @@ const Index = () => {
               transition={{ duration: 0.6, delay: 0.3 }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Link to="/upload">
+              <Link href="/upload">
                 <Button size="lg" className="w-full sm:w-auto text-base px-8 py-6 rounded-xl group">
                   Upload Your Resume
                   <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
-              <Link to="/jobs">
+              <Link href="/jobs">
                 <Button variant="outline" size="lg" className="w-full sm:w-auto text-base px-8 py-6 rounded-xl">
                   Explore Jobs
                 </Button>
@@ -195,7 +197,7 @@ const Index = () => {
             <p className="text-lg text-muted-foreground mb-8">
               Start your journey today with AI-powered insights and job matching.
             </p>
-            <Link to="/upload">
+            <Link href="/upload">
               <Button size="lg" className="text-base px-10 py-6 rounded-xl">
                 Get Started Now
               </Button>
@@ -212,6 +214,4 @@ const Index = () => {
       </footer>
     </Layout>
   );
-};
-
-export default Index;
+}

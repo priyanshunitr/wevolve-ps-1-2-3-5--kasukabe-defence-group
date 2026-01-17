@@ -7,6 +7,8 @@ Three Core Modules:
 2. Transparent Matching - Multi-factor job matching with explanations
 3. Actionable Growth - Personalized learning roadmaps
 """
+import json
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -141,3 +143,22 @@ async def match_candidate(candidate_data: dict):
         "field": field,
         "matches": results
     }
+
+
+# ============================================================
+# Jobs API
+# ============================================================
+
+@app.get("/api/jobs")
+async def get_jobs():
+    """
+    Return all available jobs from the jobs.json file.
+    """
+    jobs_file = Path(__file__).parent.parent / "data" / "jobs.json"
+    
+    try:
+        with open(jobs_file, 'r') as f:
+            data = json.load(f)
+            return {"jobs": data.get('jobs', [])}
+    except FileNotFoundError:
+        return {"jobs": []}
