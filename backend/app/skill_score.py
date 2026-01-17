@@ -11,23 +11,23 @@ with open(jobs_path, "r") as f:
     jobs = data.get("jobs", [])
 
 
-candidate =  {
-    "skills": ["Python", "FastAPI", "Docker", "React"], 
-    "experience_years": 1, 
-    "preferred_locations": ["Bangalore", "Hyderabad"], 
-    "preferred_roles": ["Backend Developer", "Full Stack Developer"], 
-    "expected_salary": 800000, 
-    "education": { 
-      "degree": "B.Tech", 
-      "field": "Computer Science", 
-      "cgpa": 8.5 
-    } 
-}
+# candidate =  {
+#     "skills": ["Python3", "FastAPI", "Docker", "ReactJS"], 
+#     "experience_years": 1, 
+#     "preferred_locations": ["Bangalore", "Hyderabad"], 
+#     "preferred_roles": ["Backend Developer", "Full Stack Developer"], 
+#     "expected_salary": 800000, 
+#     "education": { 
+#       "degree": "B.Tech", 
+#       "field": "Computer Science", 
+#       "cgpa": 8.5 
+#     } 
+# }
 
 
 def calculate_match(candidate, job):
     # 1. Skill Match & Missing Skills using Fuzzy Matching
-    MATCH_THRESHOLD = 80
+    MATCH_THRESHOLD = 85
     req_skills = job.get('required_skills', [])
     can_skills = candidate.get('skills', [])
     
@@ -83,15 +83,16 @@ def calculate_match(candidate, job):
         "missing_skills": missing_skills
     }
 
-# Run the matching for all jobs
-print(f"\n--- Match Results for {candidate['education']['field']} Candidate ---")
-print(f"Skills: {', '.join(candidate['skills'])}")
-print("-" * 50)
+if __name__ == "__main__":
+    # Run the matching for all jobs
+    print(f"\n--- Match Results for {candidate['education']['field']} Candidate ---")
+    print(f"Skills: {', '.join(candidate['skills'])}")
+    print("-" * 50)
 
-for job in jobs:
-    result = calculate_match(candidate, job)
-    print(f"Job: {result['job_title']} (ID: {result['job_id']})")
-    print(f"Score: {result['match_score']}%")
-    if result['missing_skills']:
-        print(f"Missing Skills: {', '.join(result['missing_skills'])}")
-    print("-" * 30)
+    for job in jobs:
+        result = calculate_match(candidate, job)
+        print(f"Job: {result['job_title']} (ID: {result['job_id']})")
+        print(f"Score: {result['match_score']}%")
+        if result['missing_skills']:
+            print(f"Missing Skills: {', '.join(result['missing_skills'])}")
+        print("-" * 30)

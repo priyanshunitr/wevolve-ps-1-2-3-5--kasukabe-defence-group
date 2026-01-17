@@ -10,7 +10,7 @@ Three Core Modules:
 from typing import Optional, List
 import json
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -20,6 +20,7 @@ from .database import init_db, get_db
 
 # Import routers
 from .routers import resume, matching, roadmap
+from .skill_score import calculate_match
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -102,6 +103,14 @@ class MatchScore(BaseModel):
     missing_skills: List[str]
     explanation: str
 
+class SkillScoreResponse(BaseModel):
+    overall_score: float
+    matched_skills: List[str]
+    missing_skills: List[str]
+    matching_explanation: str
+    job_id: int
+    job_title: str
+
 
 class LearningPhase(BaseModel):
     phase: int
@@ -158,38 +167,52 @@ async def health_check():
 # Module 1: Resume Intelligence
 # ============================================================
 
-@app.post("/api/resume/parse", response_model=CandidateProfile)
-async def parse_resume(file: UploadFile = File(...)):
+@app.post("/api/resume/score", response_model=SkillScoreResponse)
+async def calculate_skill_score(
+    job_id: int, 
+    candidate: CandidateProfile, 
+    db: Session = Depends(get_db)
+):
     """
-    Parse an uploaded resume (PDF/DOCX) and extract structured data.
-    Returns confidence scores for each extracted field.
-    
-    This is a placeholder - actual parsing logic will be implemented in routers/resume.py
+    Calculate the match score between a resume and a job requirement.
+    The candidate info is provided as JSON in the request body.
     """
-    # Validate file type
-    allowed_types = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid file type. Please upload a PDF or DOCX file."
-        )
-    
-    # Placeholder response - actual implementation will use pdfplumber/python-docx
-    return CandidateProfile(
-        full_name="Demo Candidate",
-        email="demo@example.com",
-        phone="+91 9876543210",
-        location="Bangalore, India",
-        current_role="Software Developer",
-        years_of_experience=3.5,
-        skills=["Python", "FastAPI", "React", "SQL"],
-        confidence_scores={
-            "full_name": 95,
-            "email": 100,
-            "phone": 85,
-            "location": 80,
-            "skills": 90
-        }
+    # Fetch job from database
+    job_model = db.query(models.Job).filter(models.Job.id == job_id).first()
+    if not job_model:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    # Map CandidateProfile to dictionary expected by skill_score.py
+    candidate_dict = {
+        "skills": candidate.skills,
+        "experience_years": candidate.years_of_experience,
+        "preferred_locations": [candidate.location] if candidate.location else [],
+        "expected_salary": (candidate.confidence_scores.get("expected_salary") or 0),
+        "preferred_roles": [candidate.current_role] if candidate.current_role else []
+    }
+
+    # Map Job model to dictionary expected by skill_score.py
+    job_dict = {
+        "id": job_model.id,
+        "title": job_model.title,
+        "location": job_model.location,
+        "salary_min": job_model.salary_min or 0,
+        "salary_max": job_model.salary_max or 0,
+        "min_experience_years": job_model.min_experience_years or 0,
+        "required_skills": [s.name for s in job_model.required_skills]
+    }
+
+    # Call the scoring logic from skill_score.py
+    result = calculate_match(candidate_dict, job_dict)
+
+    return SkillScoreResponse(
+        overall_score=result["match_score"],
+        matched_skills=[s for s in job_dict["required_skills"] if s not in result["missing_skills"]],
+        missing_skills=result["missing_skills"],
+        matching_explanation=f"Match score: {result['match_score']}%. " + 
+                            (f"Missing skills: {', '.join(result['missing_skills'])}" if result['missing_skills'] else "All skills matched!"),
+        job_id=result["job_id"],
+        job_title=result["job_title"]
     )
 
 
