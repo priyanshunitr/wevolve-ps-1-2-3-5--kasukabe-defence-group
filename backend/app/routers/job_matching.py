@@ -114,3 +114,4 @@ if __name__ == "__main__":
         if result['missing_skills']:
             print(f"Missing Skills: {', '.join(result['missing_skills'])}")
         print("-" * 30)
+
