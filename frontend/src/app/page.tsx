@@ -1,134 +1,217 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Upload, Target, Briefcase, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Layout from '@/components/layout/Layout';
 
-// API Base URL
-const API_BASE = 'http://localhost:8000';
+const features = [
+  {
+    icon: Upload,
+    title: 'Smart Resume Parsing',
+    description: 'AI-powered extraction with confidence scoring for accurate data capture'
+  },
+  {
+    icon: Target,
+    title: 'Skills Gap Analysis',
+    description: 'Compare your skills against target roles with personalized learning paths'
+  },
+  {
+    icon: Briefcase,
+    title: 'Dynamic Job Discovery',
+    description: 'Find perfectly matched opportunities with smart filtering and match scoring'
+  }
+];
 
-interface HealthStatus {
-  status: string;
-  message?: string;
-}
+const steps = [
+  { number: '01', title: 'Upload Resume', description: 'PDF or DOCX format' },
+  { number: '02', title: 'Verify & Edit', description: 'Review parsed data' },
+  { number: '03', title: 'Analyze Gaps', description: 'Find missing skills' },
+  { number: '04', title: 'Discover Jobs', description: 'Get matched roles' }
+];
 
 export default function Home() {
-  const [healthStatus, setHealthStatus] = useState<HealthStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check API health on mount
-    axios.get(`${API_BASE}/health`)
-      .then(res => {
-        setHealthStatus(res.data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setHealthStatus({ status: 'offline', message: 'Backend not running' });
-        setLoading(false);
-      });
-  }, []);
-
   return (
-    <div className="min-h-screen">
+    <Layout>
       {/* Hero Section */}
-      <section className="pt-24 pb-16 text-center relative overflow-hidden">
-        {/* Animated Background Orbs */}
-        <div className="absolute w-96 h-96 rounded-full bg-[radial-gradient(circle,rgba(99,102,241,0.3)_0%,transparent_70%)] -top-24 -left-24 animate-float -z-10" />
-        <div className="absolute w-72 h-72 rounded-full bg-[radial-gradient(circle,rgba(244,114,182,0.2)_0%,transparent_70%)] -bottom-12 -right-12 animate-float [animation-direction:reverse] [animation-duration:8s] -z-10" />
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+        {/* Background Elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -right-32 w-96 h-96 bg-accent-foreground/20 rounded-full blur-3xl" />
+        </div>
 
-        <div className="max-w-4xl mx-auto px-4">
-          {/* Logo & Title */}
-          <h1 className="text-5xl md:text-7xl font-extrabold mb-4 gradient-text animate-gradient">
-            Wevolve
-          </h1>
+        <div className="container mx-auto px-4 py-20 relative z-10">
+          <div className="max-w-4xl mx-auto text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary mb-8"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span className="text-sm font-medium">AI-Powered Career Intelligence</span>
+            </motion.div>
 
-          <p className="text-xl text-text-secondary mb-8 font-light max-w-xl mx-auto">
-            The AI-Powered Career Acceleration Ecosystem
-          </p>
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
+            >
+              Your AI{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent-foreground">
+                Career Co-Pilot
+              </span>
+            </motion.h1>
 
-          {/* API Status Badge */}
-          <div className={`inline-block px-4 py-2 rounded-full border mb-12 ${loading
-              ? 'border-text-muted text-text-muted'
-              : healthStatus?.status === 'healthy'
-                ? 'border-green-500 text-green-500'
-                : 'border-red-500 text-red-500'
-            }`}>
-            {loading ? 'Connecting...' : healthStatus?.status === 'healthy' ? '🟢 Backend Connected' : '🔴 Backend Offline'}
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
+            >
+              Navigate your career journey with intelligent resume analysis, personalized skill gap insights, and dynamic job matching.
+            </motion.p>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-4 justify-center"
+            >
+              <Link href="/upload">
+                <Button size="lg" className="w-full sm:w-auto text-base px-8 py-6 rounded-xl group">
+                  Upload Your Resume
+                  <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/jobs">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto text-base px-8 py-6 rounded-xl">
+                  Explore Jobs
+                </Button>
+              </Link>
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Feature Cards */}
-      <section className="max-w-6xl mx-auto px-4 pb-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Resume Intelligence */}
-          <div className="glass-card p-8 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(99,102,241,0.3)]">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-wevolve-primary to-wevolve-primary-light flex items-center justify-center mb-6 shadow-[0_8px_24px_rgba(99,102,241,0.4)]">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-3">Resume Intelligence</h3>
-            <p className="text-text-secondary text-sm mb-4">
-              Upload your resume and get instant AI-powered parsing with confidence scores. Know exactly how complete your profile is.
+      {/* Features Section */}
+      <section className="py-24 bg-card">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Powerful Career Tools</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Everything you need to accelerate your career journey
             </p>
-            <span className="inline-block px-3 py-1 text-xs border border-wevolve-primary text-wevolve-primary rounded-full">
-              The Fix
-            </span>
-          </div>
+          </motion.div>
 
-          {/* Transparent Matching */}
-          <div className="glass-card p-8 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(244,114,182,0.3)]">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-wevolve-secondary to-pink-300 flex items-center justify-center mb-6 shadow-[0_8px_24px_rgba(244,114,182,0.4)]">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-3">Transparent Matching</h3>
-            <p className="text-text-secondary text-sm mb-4">
-              See exactly why you match with a job. Our multi-factor engine explains every score: Skills (40%), Location, Salary, and more.
-            </p>
-            <span className="inline-block px-3 py-1 text-xs border border-wevolve-secondary text-wevolve-secondary rounded-full">
-              The Why
-            </span>
-          </div>
-
-          {/* Actionable Growth */}
-          <div className="glass-card p-8 transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(34,211,238,0.3)]">
-            <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-wevolve-accent to-cyan-300 flex items-center justify-center mb-6 shadow-[0_8px_24px_rgba(34,211,238,0.4)]">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M12 14l9-5-9-5-9 5 9 5z" />
-                <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold mb-3">Actionable Growth</h3>
-            <p className="text-text-secondary text-sm mb-4">
-              Get a personalized learning roadmap based on your skill gaps. We show you how to become the perfect candidate.
-            </p>
-            <span className="inline-block px-3 py-1 text-xs border border-wevolve-accent text-wevolve-accent rounded-full">
-              The How
-            </span>
+          <div className="grid md:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+                className="p-8 rounded-2xl bg-background border border-border shadow-lg hover:shadow-xl transition-all"
+              >
+                <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-6">
+                  <feature.icon className="w-7 h-7 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
+      </section>
 
-        {/* CTA Button */}
-        <div className="text-center mt-16">
-          <button className="px-10 py-4 text-lg font-semibold text-white rounded-lg bg-gradient-to-r from-wevolve-primary to-wevolve-secondary shadow-[0_8px_24px_rgba(99,102,241,0.4)] transition-all duration-300 hover:scale-105 hover:shadow-[0_12px_32px_rgba(99,102,241,0.5)]">
-            🚀 Start Your Evolution
-          </button>
-          <p className="text-text-secondary text-sm mt-4">
-            Upload your resume to get started →
-          </p>
+      {/* How It Works Section */}
+      <section className="py-24">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Four simple steps to your dream career
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-4 gap-6">
+            {steps.map((step, index) => (
+              <motion.div
+                key={step.number}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.1 }}
+                className="relative"
+              >
+                <div className="text-center p-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary text-primary-foreground text-2xl font-bold mb-4">
+                    {step.number}
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground">{step.description}</p>
+                </div>
+                {index < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-1/2 -right-3 transform -translate-y-1/2">
+                    <ArrowRight className="w-6 h-6 text-muted" />
+                  </div>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-24 bg-primary/5">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="max-w-3xl mx-auto text-center"
+          >
+            <div className="inline-flex items-center gap-2 text-primary mb-4">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="text-sm font-medium">Free to use, no credit card required</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              Ready to Accelerate Your Career?
+            </h2>
+            <p className="text-lg text-muted-foreground mb-8">
+              Start your journey today with AI-powered insights and job matching.
+            </p>
+            <Link href="/upload">
+              <Button size="lg" className="text-base px-10 py-6 rounded-xl">
+                Get Started Now
+              </Button>
+            </Link>
+          </motion.div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="py-8 text-center border-t border-white/10 mt-auto">
-        <p className="text-text-secondary text-sm">
-          Built with ❤️ by <strong>Kasukabe Defence Group</strong>
-        </p>
+      <footer className="py-8 border-t border-border">
+        <div className="container mx-auto px-4 text-center text-muted-foreground">
+          <p className="text-sm">© 2025 AI Career Co-Pilot. Built with ❤️ for job seekers.</p>
+        </div>
       </footer>
-    </div>
+    </Layout>
   );
 }

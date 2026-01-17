@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./providers";
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Wevolve - AI Career Acceleration",
-  description: "Wevolve - The AI-Powered Career Acceleration Ecosystem. Upload your resume, get matched with jobs, and receive personalized learning roadmaps.",
+  title: "AI Career Co-Pilot | Wevolve",
+  description: "AI-Powered Career Acceleration Ecosystem - Smart resume parsing, skill gap analysis, and job matching",
 };
 
 export default function RootLayout({
@@ -18,9 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
