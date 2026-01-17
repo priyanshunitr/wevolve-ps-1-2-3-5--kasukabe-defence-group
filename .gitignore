@@ -2,13 +2,19 @@
 __pycache__/
 *.py[cod]
 *$py.class
+venv/
+.venv/
 backend/venv/
+backend/.venv/
 *.db
 *.sqlite3
 .env
 *.egg-info/
 dist/
 build/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Node/Frontend
 node_modules/

@@ -1,18 +1,17 @@
 """
 Database Configuration for Wevolve
-Using SQLite for rapid prototyping (migratable to PostgreSQL)
+SQLite for development (easily migratable to PostgreSQL)
 """
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# SQLite database URL - creates wevolve.db in backend folder
-SQLALCHEMY_DATABASE_URL = "sqlite:///./wevolve.db"
+from ..config import settings
 
 # Create engine with SQLite-specific configuration
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Needed for SQLite
+    settings.DATABASE_URL,
+    connect_args={"check_same_thread": False}  # Required for SQLite
 )
 
 # Session factory
@@ -24,8 +23,8 @@ Base = declarative_base()
 
 def get_db():
     """
-    Dependency that provides a database session.
-    Ensures proper cleanup after each request.
+    FastAPI dependency that provides a database session.
+    Ensures cleanup after each request.
     """
     db = SessionLocal()
     try:
@@ -35,8 +34,5 @@ def get_db():
 
 
 def init_db():
-    """
-    Initialize the database by creating all tables.
-    Call this on application startup.
-    """
+    """Initialize database by creating all tables."""
     Base.metadata.create_all(bind=engine)

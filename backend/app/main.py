@@ -7,30 +7,30 @@ Three Core Modules:
 2. Transparent Matching - Multi-factor job matching with explanations
 3. Actionable Growth - Personalized learning roadmaps
 """
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional, List
-import json
 
-from .database import init_db, get_db
-
-# Import routers
+from .config import settings
+from .db import init_db
 from .routers import resume, matching, roadmap
+from .routers.job_matching import calculate_match, jobs
 
-# Initialize FastAPI app
+# ============================================================
+# Application Setup
+# ============================================================
+
 app = FastAPI(
-    title="Wevolve API",
-    description="AI-Powered Career Acceleration Ecosystem",
-    version="1.0.0",
+    title=settings.APP_NAME,
+    description=settings.APP_DESCRIPTION,
+    version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# CORS Configuration for React frontend
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite & CRA defaults
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -43,269 +43,101 @@ app.include_router(roadmap.router)
 
 
 # ============================================================
-# Pydantic Schemas for API Request/Response
-# ============================================================
-
-class HealthResponse(BaseModel):
-    status: str
-    message: str
-    version: str
-
-
-class SkillBase(BaseModel):
-    name: str
-    category: Optional[str] = None
-    difficulty_level: Optional[int] = 1
-
-
-class CandidateProfile(BaseModel):
-    full_name: str
-    email: str
-    phone: Optional[str] = None
-    location: Optional[str] = None
-    current_role: Optional[str] = None
-    years_of_experience: Optional[float] = 0
-    skills: List[str] = []
-    confidence_scores: dict = {}
-
-    class Config:
-        from_attributes = True
-
-
-class JobPosting(BaseModel):
-    id: int
-    title: str
-    company: str
-    location: Optional[str] = None
-    salary_min: Optional[int] = None
-    salary_max: Optional[int] = None
-    required_skills: List[str] = []
-
-    class Config:
-        from_attributes = True
-
-
-class MatchScore(BaseModel):
-    job_id: int
-    job_title: str
-    company: str
-    total_score: float
-    skills_score: float
-    location_score: float
-    salary_score: float
-    experience_score: float
-    role_score: float
-    matching_skills: List[str]
-    missing_skills: List[str]
-    explanation: str
-
-
-class LearningPhase(BaseModel):
-    phase: int
-    title: str
-    skills: List[str]
-    estimated_weeks: int
-    resources: List[str] = []
-
-
-class RoadmapResponse(BaseModel):
-    target_role: str
-    missing_skills: List[str]
-    phases: List[LearningPhase]
-    total_estimated_weeks: int
-
-
-# ============================================================
-# Startup Event - Initialize Database
+# Lifecycle Events
 # ============================================================
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the database on application startup."""
+    """Initialize database on application startup."""
     print("🚀 Wevolve API Starting...")
     init_db()
     print("✅ Database initialized successfully!")
 
 
 # ============================================================
-# API Endpoints
+# Health Check Endpoints
 # ============================================================
 
-@app.get("/", response_model=HealthResponse)
+@app.get("/")
 async def root():
-    """Health check endpoint."""
-    return HealthResponse(
-        status="healthy",
-        message="Welcome to Wevolve API - The AI-Powered Career Acceleration Ecosystem",
-        version="1.0.0"
-    )
-
-
-@app.get("/health", response_model=HealthResponse)
-async def health_check():
-    """Detailed health check."""
-    return HealthResponse(
-        status="healthy",
-        message="All systems operational",
-        version="1.0.0"
-    )
-
-
-# ============================================================
-# Module 1: Resume Intelligence
-# ============================================================
-
-@app.post("/api/resume/parse", response_model=CandidateProfile)
-async def parse_resume(file: UploadFile = File(...)):
-    """
-    Parse an uploaded resume (PDF/DOCX) and extract structured data.
-    Returns confidence scores for each extracted field.
-    
-    This is a placeholder - actual parsing logic will be implemented in routers/resume.py
-    """
-    # Validate file type
-    allowed_types = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
-    if file.content_type not in allowed_types:
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid file type. Please upload a PDF or DOCX file."
-        )
-    
-    # Placeholder response - actual implementation will use pdfplumber/python-docx
-    return CandidateProfile(
-        full_name="Demo Candidate",
-        email="demo@example.com",
-        phone="+91 9876543210",
-        location="Bangalore, India",
-        current_role="Software Developer",
-        years_of_experience=3.5,
-        skills=["Python", "FastAPI", "React", "SQL"],
-        confidence_scores={
-            "full_name": 95,
-            "email": 100,
-            "phone": 85,
-            "location": 80,
-            "skills": 90
+    """Root endpoint - health check."""
+    try:
+        return {
+            "status": "ok",
+            "message": "Wevolve API is running",
+            "version": settings.APP_VERSION
         }
-    )
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Health check failed: {str(e)}"
+        }
 
 
-# ============================================================
-# Module 2: Transparent Matching
-# ============================================================
-
-@app.get("/api/jobs", response_model=List[JobPosting])
-async def get_all_jobs():
-    """
-    Get all available job postings.
-    In production, this would query the database.
-    """
-    # Placeholder data - will be replaced with database query
-    mock_jobs = [
-        JobPosting(
-            id=1,
-            title="Senior Python Developer",
-            company="TechCorp India",
-            location="Bangalore",
-            salary_min=1500000,
-            salary_max=2500000,
-            required_skills=["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"]
-        ),
-        JobPosting(
-            id=2,
-            title="Full Stack Developer",
-            company="StartupXYZ",
-            location="Remote",
-            salary_min=1200000,
-            salary_max=1800000,
-            required_skills=["React", "Node.js", "MongoDB", "TypeScript"]
-        ),
-        JobPosting(
-            id=3,
-            title="Data Engineer",
-            company="Analytics Pro",
-            location="Hyderabad",
-            salary_min=1800000,
-            salary_max=2800000,
-            required_skills=["Python", "Spark", "SQL", "Airflow", "AWS"]
-        )
-    ]
-    return mock_jobs
-
-
-@app.post("/api/match/{candidate_id}", response_model=List[MatchScore])
-async def calculate_matches(candidate_id: int):
-    """
-    Calculate match scores between a candidate and all available jobs.
-    Returns detailed breakdown with explanations.
-    
-    Scoring Weights:
-    - Skills: 40%
-    - Location: 20%
-    - Salary: 15%
-    - Experience: 15%
-    - Role: 10%
-    """
-    # Placeholder response - actual matching engine will be implemented
-    return [
-        MatchScore(
-            job_id=1,
-            job_title="Senior Python Developer",
-            company="TechCorp India",
-            total_score=78.5,
-            skills_score=85.0,
-            location_score=100.0,
-            salary_score=70.0,
-            experience_score=60.0,
-            role_score=75.0,
-            matching_skills=["Python", "FastAPI"],
-            missing_skills=["PostgreSQL", "Docker", "AWS"],
-            explanation="Strong skills match (85%). You have 2/5 required skills. Consider learning PostgreSQL and Docker to improve your match."
-        )
-    ]
-
-
-# ============================================================
-# Module 3: Actionable Growth (Roadmap Generation)
-# ============================================================
-
-@app.get("/api/roadmap/{candidate_id}/{job_id}", response_model=RoadmapResponse)
-async def generate_roadmap(candidate_id: int, job_id: int):
-    """
-    Generate a personalized learning roadmap based on skill gaps.
-    Uses skill dependency topology to order learning phases.
-    """
-    # Placeholder response - actual roadmap generation will be implemented
-    return RoadmapResponse(
-        target_role="Senior Python Developer",
-        missing_skills=["PostgreSQL", "Docker", "AWS"],
-        phases=[
-            LearningPhase(
-                phase=1,
-                title="Database Fundamentals",
-                skills=["PostgreSQL"],
-                estimated_weeks=3,
-                resources=["PostgreSQL Official Tutorial", "SQLZoo Exercises"]
-            ),
-            LearningPhase(
-                phase=2,
-                title="Containerization",
-                skills=["Docker"],
-                estimated_weeks=2,
-                resources=["Docker Getting Started", "Docker for Developers course"]
-            ),
-            LearningPhase(
-                phase=3,
-                title="Cloud Infrastructure",
-                skills=["AWS"],
-                estimated_weeks=4,
-                resources=["AWS Free Tier Labs", "AWS Certified Developer Guide"]
-            )
-        ],
-        total_estimated_weeks=9
-    )
+@app.get("/health")
+async def health_check():
+    """Detailed health check with database connectivity test."""
+    try:
+        from .db import SessionLocal
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        db.close()
+        
+        return {
+            "status": "ok",
+            "message": "All systems operational",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": "Health check failed",
+            "error": str(e),
+            "database": "disconnected"
+        }
 
 
 # ============================================================
 # Run with: uvicorn app.main:app --reload
 # ============================================================
+
+@app.post("/match")
+async def match_candidate(candidate_data: dict):
+    """
+    Match a candidate against all available jobs.
+    Expects candidate JSON in the request body.
+    """
+    # 1. Print visual report to terminal (like loaclly)
+    field = candidate_data.get('education', {}).get('field', 'Unknown')
+    print(f"\n--- Match Results for {field} Candidate ---")
+    print(f"Skills: {', '.join(candidate_data.get('skills', []))}")
+    print("-" * 50)
+
+    results = []
+    for job in jobs:
+        # 2. Call your logic from job_matching.py
+        result = calculate_match(candidate_data, job)
+        
+        # 3. Print details to console
+        print(f"Job: {result['job_title']} (ID: {result['job_id']})")
+        print(f"Score: {result['match_score']}%")
+        print(f"Skill Match: {result['breakdown']['skill_match']}%")
+        print(f"Location Match: {result['breakdown']['location_match']}%")
+        print(f"Salary Match: {result['breakdown']['salary_match']}%")
+        print(f"Experience Match: {result['breakdown']['experience_match']}%")
+        print(f"Role Match: {result['breakdown']['role_match']}%")
+        if result['missing_skills']:
+            print(f"Missing Skills: {', '.join(result['missing_skills'])}")
+        print("-" * 30)
+        
+        results.append(result)
+    
+    # 4. Sort results by match_score descending for the API response
+    results.sort(key=lambda x: x['match_score'], reverse=True)
+    
+    # 5. Return the JSON result
+    return {
+        "candidate": candidate_data.get("full_name", "Candidate"),
+        "field": field,
+        "matches": results
+    }
