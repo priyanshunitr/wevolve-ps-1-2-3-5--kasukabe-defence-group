@@ -61,6 +61,10 @@ class Candidate(Base):
     expected_salary_min = Column(Integer)
     expected_salary_max = Column(Integer)
     
+    # Preferences (JSON lists)
+    preferred_locations = Column(JSON, default=[])
+    preferred_roles = Column(JSON, default=[])
+    
     # Parsed Content (JSON)
     education = Column(JSON, default=[])
     work_experience = Column(JSON, default=[])

@@ -12,7 +12,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .db import init_db
-from .schemas import HealthResponse
 from .routers import resume, matching, roadmap
 from .routers.job_matching import calculate_match, jobs
 
@@ -59,24 +58,43 @@ async def startup_event():
 # Health Check Endpoints
 # ============================================================
 
-@app.get("/", response_model=HealthResponse)
+@app.get("/")
 async def root():
     """Root endpoint - health check."""
-    return HealthResponse(
-        status="healthy",
-        message="Welcome to Wevolve API - The AI-Powered Career Acceleration Ecosystem",
-        version=settings.APP_VERSION
-    )
+    try:
+        return {
+            "status": "ok",
+            "message": "Wevolve API is running",
+            "version": settings.APP_VERSION
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Health check failed: {str(e)}"
+        }
 
 
-@app.get("/health", response_model=HealthResponse)
+@app.get("/health")
 async def health_check():
-    """Detailed health check."""
-    return HealthResponse(
-        status="healthy",
-        message="All systems operational",
-        version=settings.APP_VERSION
-    )
+    """Detailed health check with database connectivity test."""
+    try:
+        from .db import SessionLocal
+        db = SessionLocal()
+        db.execute("SELECT 1")
+        db.close()
+        
+        return {
+            "status": "ok",
+            "message": "All systems operational",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": "Health check failed",
+            "error": str(e),
+            "database": "disconnected"
+        }
 
 
 # ============================================================

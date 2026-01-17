@@ -105,6 +105,26 @@ class ResumeParser:
                 )
         return ExtractedField(value=0, confidence=0, source="Could not determine", needs_review=True)
     
+    
+    def extract_education(self, text: str) -> List[Dict[str, Any]]:
+        """Extract education details"""
+        education = []
+        # Pattern for: Degree in Field, Institute (Year) - CGPA: X.X
+        # Example: B.Tech in Computer Science, NIT Rourkela (2022-2026) - CGPA: 8.5
+        pattern = r'(?P<degree>B\.?Tech|M\.?Tech|B\.?E|M\.?E|B\.?Sc|M\.?Sc|BCA|MCA|MBA)(?:\s+in\s+(?P<field>[^,]+))?,\s+(?P<institute>[^(]+)\s*\((?P<year>[^)]+)\)(?:\s*-\s*CGPA\s*[:]\s*(?P<cgpa>[\d.]+))?'
+        
+        matches = re.finditer(pattern, text, re.IGNORECASE)
+        for match in matches:
+            education.append({
+                "degree": match.group("degree"),
+                "field": match.group("field").strip() if match.group("field") else "Unknown",
+                "institute": match.group("institute").strip(),
+                "year": match.group("year"),
+                "cgpa": float(match.group("cgpa")) if match.group("cgpa") else None
+            })
+            
+        return education
+
     def extract_location(self, text: str) -> ExtractedField:
         """Extract location from resume"""
         text_lower = text.lower()

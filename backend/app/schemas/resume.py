@@ -13,6 +13,7 @@ class ExtractedField(BaseModel):
 
 class ParsedResume(BaseModel):
     """Complete parsed resume with all fields"""
+    id: Optional[int] = None
     full_name: ExtractedField
     email: ExtractedField
     phone: ExtractedField
@@ -22,6 +23,12 @@ class ParsedResume(BaseModel):
     skills: List[ExtractedField]
     education: List[Dict]
     work_experience: List[Dict]
+    
+    # New manual/inferred fields
+    preferred_locations: List[str] = []
+    preferred_roles: List[str] = []
+    expected_salary: Optional[int] = None
+    
     overall_confidence: int
     raw_text: str
 

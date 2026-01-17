@@ -6,22 +6,20 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from ..db import get_db, Candidate
-from ..schemas.resume import ParsedResume, ExtractedField
+from ..schemas import ParsedResume, ExtractedField
 from ..services import ResumeParser
 
 router = APIRouter(prefix="/api/resume", tags=["Resume Intelligence"])
 
-# Service instance
 parser = ResumeParser()
 
 
 @router.post("/parse", response_model=ParsedResume)
-async def parse_resume(file: UploadFile = File(...)):
+async def parse_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
     Parse an uploaded resume (PDF/DOCX) and extract structured data.
-    Returns confidence scores for each extracted field.
+    Saves the initial parse to the database and returns the result.
     """
-    # Validate file type
     allowed_types = {
         "application/pdf": "pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx"
@@ -33,7 +31,6 @@ async def parse_resume(file: UploadFile = File(...)):
             detail=f"Invalid file type: {file.content_type}. Please upload PDF or DOCX."
         )
     
-    # Read and extract text
     content = await file.read()
     file_type = allowed_types[file.content_type]
     
@@ -60,17 +57,52 @@ async def parse_resume(file: UploadFile = File(...)):
         'current_role': ExtractedField(value="", confidence=0, source="Not implemented", needs_review=True),
         'years_of_experience': parser.extract_experience_years(text),
         'skills': parser.extract_skills(text),
-        'education': [],
+        'education': parser.extract_education(text),
         'work_experience': [],
     }
     
+    # Initialize preference fields (can be updated manually later)
+    # If using Python 3.9+, use union operator |, else iterate
+    parsed_with_defaults = parsed.copy()
+    parsed_with_defaults['preferred_locations'] = []
+    parsed_with_defaults['preferred_roles'] = []
+    parsed_with_defaults['expected_salary'] = None
+    
     overall_confidence = parser.calculate_overall_confidence(parsed)
     
-    return ParsedResume(
-        **parsed,
+    # --- SAVE TO DB IMMEDIATELY ---
+    candidate = Candidate(
+        full_name=parsed['full_name'].value,
+        email=parsed['email'].value,
+        phone=parsed['phone'].value,
+        location=parsed['location'].value,
+        current_role=parsed['current_role'].value,
+        years_of_experience=parsed['years_of_experience'].value,
+        raw_resume_text=text,
+        education=parsed['education'],
+        confidence_scores={
+            'full_name': parsed['full_name'].confidence,
+            'email': parsed['email'].confidence,
+            'overall': overall_confidence
+        },
+        # Initialize preferences as empty
+        preferred_locations=[],
+        preferred_roles=[]
+    )
+    db.add(candidate)
+    db.commit()
+    db.refresh(candidate)
+    
+   
+    response = ParsedResume(
+        **parsed_with_defaults,
         overall_confidence=overall_confidence,
         raw_text=text[:2000]
     )
+    
+    setattr(response, "id", candidate.id)
+    
+    return response
 
 
 @router.post("/save/{candidate_id}")
@@ -79,33 +111,34 @@ async def save_parsed_profile(
     profile: ParsedResume,
     db: Session = Depends(get_db)
 ):
-    """Save or update a parsed profile to the database."""
+    """
+    Update a parsed profile with user corrections.
+    """
     candidate = db.query(Candidate).filter(Candidate.id == candidate_id).first()
     
     if not candidate:
-        candidate = Candidate(
-            full_name=profile.full_name.value,
-            email=profile.email.value,
-            phone=profile.phone.value,
-            location=profile.location.value,
-            current_role=profile.current_role.value,
-            years_of_experience=profile.years_of_experience.value,
-            raw_resume_text=profile.raw_text,
-            confidence_scores={
-                'full_name': profile.full_name.confidence,
-                'email': profile.email.confidence,
-                'overall': profile.overall_confidence
-            }
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Candidate with ID {candidate_id} not found"
         )
-        db.add(candidate)
-    else:
-        candidate.full_name = profile.full_name.value
-        candidate.email = profile.email.value
-        candidate.phone = profile.phone.value
-        candidate.location = profile.location.value
-        candidate.years_of_experience = profile.years_of_experience.value
+    
+    # Update fields with potentially corrected values
+    candidate.full_name = profile.full_name.value
+    candidate.email = profile.email.value
+    candidate.phone = profile.phone.value
+    candidate.location = profile.location.value
+    candidate.current_role = profile.current_role.value
+    candidate.years_of_experience = profile.years_of_experience.value
+    
+    # Update Education
+    candidate.education = profile.education
+    
+    # Update Manual Preferences
+    candidate.preferred_locations = profile.preferred_locations
+    candidate.preferred_roles = profile.preferred_roles
+    candidate.expected_salary_min = profile.expected_salary  # Storing single value as min
     
     db.commit()
     db.refresh(candidate)
     
-    return {"message": "Profile saved successfully", "candidate_id": candidate.id}
+    return {"message": "Profile updated successfully", "candidate_id": candidate.id}
