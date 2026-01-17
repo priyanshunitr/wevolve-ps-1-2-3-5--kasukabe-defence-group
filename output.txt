@@ -1,0 +1,24 @@
+
+--- Match Results for Computer Science Candidate ---
+Skills: Python3, FastAPI, Docker, ReactJS
+--------------------------------------------------
+Job: Senior Python Developer (ID: 1)
+Score: 63.2%
+Missing Skills: PostgreSQL, AWS
+------------------------------
+Job: Full Stack Developer (ID: 2)
+Score: 18.3%
+Missing Skills: React, Node.js, MongoDB, TypeScript
+------------------------------
+Job: Data Engineer (ID: 3)
+Score: 42.2%
+Missing Skills: Spark, SQL, Airflow, AWS
+------------------------------
+Job: Frontend Developer (ID: 4)
+Score: 21.0%
+Missing Skills: React, TypeScript, CSS, Tailwind
+------------------------------
+Job: DevOps Engineer (ID: 5)
+Score: 23.3%
+Missing Skills: AWS, Kubernetes, Terraform, Jenkins
+------------------------------

@@ -7,11 +7,14 @@ Three Core Modules:
 2. Transparent Matching - Multi-factor job matching with explanations
 3. Actionable Growth - Personalized learning roadmaps
 """
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from typing import Optional, List
 import json
+
+from fastapi import FastAPI, HTTPException, UploadFile, File, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from . import models
 
 from .database import init_db, get_db
 
@@ -195,42 +198,27 @@ async def parse_resume(file: UploadFile = File(...)):
 # ============================================================
 
 @app.get("/api/jobs", response_model=List[JobPosting])
-async def get_all_jobs():
+async def get_all_jobs(db: Session = Depends(get_db)):
     """
-    Get all available job postings.
-    In production, this would query the database.
+    Get all available job postings from the database.
     """
-    # Placeholder data - will be replaced with database query
-    mock_jobs = [
-        JobPosting(
-            id=1,
-            title="Senior Python Developer",
-            company="TechCorp India",
-            location="Bangalore",
-            salary_min=1500000,
-            salary_max=2500000,
-            required_skills=["Python", "FastAPI", "PostgreSQL", "Docker", "AWS"]
-        ),
-        JobPosting(
-            id=2,
-            title="Full Stack Developer",
-            company="StartupXYZ",
-            location="Remote",
-            salary_min=1200000,
-            salary_max=1800000,
-            required_skills=["React", "Node.js", "MongoDB", "TypeScript"]
-        ),
-        JobPosting(
-            id=3,
-            title="Data Engineer",
-            company="Analytics Pro",
-            location="Hyderabad",
-            salary_min=1800000,
-            salary_max=2800000,
-            required_skills=["Python", "Spark", "SQL", "Airflow", "AWS"]
+    jobs = db.query(models.Job).all()
+    
+    # Map SQLAlchemy objects to Pydantic models with skill names
+    result = []
+    for job in jobs:
+        job_data = JobPosting(
+            id=job.id,
+            title=job.title,
+            company=job.company,
+            location=job.location,
+            salary_min=job.salary_min,
+            salary_max=job.salary_max,
+            required_skills=[s.name for s in job.required_skills]
         )
-    ]
-    return mock_jobs
+        result.append(job_data)
+        
+    return result
 
 
 @app.post("/api/match/{candidate_id}", response_model=List[MatchScore])

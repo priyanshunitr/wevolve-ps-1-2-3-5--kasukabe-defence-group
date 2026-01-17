@@ -12,6 +12,7 @@ Scoring Weight Distribution:
 import json
 from typing import List, Dict, Optional
 from pathlib import Path
+from thefuzz import process, fuzz
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -97,34 +98,54 @@ def calculate_skills_score(
     optional_skills: List[str] = []
 ) -> tuple[float, List[str], List[str], List[str]]:
     """
-    Calculate skills match score.
+    Calculate skills match score using fuzzy string matching.
     Required skills are weighted more heavily than optional.
+    Threshold for a match is 85%.
     
     Returns: (score, matching_skills, missing_required, missing_optional)
     """
-    candidate_skills_lower = {s.lower() for s in candidate_skills}
-    required_lower = {s.lower() for s in required_skills}
-    optional_lower = {s.lower() for s in optional_skills}
+    if not candidate_skills:
+        return 0.0, [], required_skills, optional_skills
+
+    MATCH_THRESHOLD = 80
+    matching_required = []
+    missing_required = []
+    matching_optional = []
+    missing_optional = []
     
-    # Find matches
-    matching_required = candidate_skills_lower & required_lower
-    matching_optional = candidate_skills_lower & optional_lower
+    # Check Required Skills
+    for req in required_skills:
+        # returns (best_match, score)
+        match = process.extractOne(req, candidate_skills, scorer=fuzz.token_set_ratio)
+        if match and match[1] >= MATCH_THRESHOLD:
+            matching_required.append(req)
+        else:
+            missing_required.append(req)
+            
+    # Check Optional Skills
+    for opt in optional_skills:
+        match = process.extractOne(opt, candidate_skills, scorer=fuzz.token_set_ratio)
+        if match and match[1] >= MATCH_THRESHOLD:
+            matching_optional.append(opt)
+        else:
+            missing_optional.append(opt)
+
+    all_matching = list(set(matching_required) | set(matching_optional))
     
-    missing_required = list(required_lower - candidate_skills_lower)
-    missing_optional = list(optional_lower - candidate_skills_lower)
-    matching = list(matching_required | matching_optional)
-    
-    # Score calculation: required matches count double
-    if len(required_skills) == 0:
-        score = 100.0  # No requirements = perfect match
+    # Score calculation: 80% required, 20% optional
+    if not required_skills:
+        req_score = 100.0
     else:
-        required_score = (len(matching_required) / len(required_skills)) * 100 if required_skills else 0
-        optional_score = (len(matching_optional) / len(optional_skills)) * 100 if optional_skills else 0
+        req_score = (len(matching_required) / len(required_skills)) * 100
         
-        # Weight: 80% required, 20% optional
-        score = (required_score * 0.8) + (optional_score * 0.2)
+    if not optional_skills:
+        opt_score = 100.0
+    else:
+        opt_score = (len(matching_optional) / len(optional_skills)) * 100
+        
+    score = (req_score * 0.8) + (opt_score * 0.2)
     
-    return score, [s.title() for s in matching], missing_required, missing_optional
+    return score, all_matching, missing_required, missing_optional
 
 
 def calculate_location_score(
