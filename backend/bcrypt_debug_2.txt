@@ -1,0 +1,4 @@
+Bcrypt version: 4.0.1
+Testing password: password123 (len: 11)
+Hashed: $2b$12$0eweCfeAh1OO3CXXJDVcreFPb.fToPFHBkK99WRkHzpUeWGmQLbtK
+Direct bcrypt hashed: b'$2b$12$fwsyLHjf.gmoAHFrLOPl5O7IX0d5LHiEjUwGTDJPcZPZ6zKnlbJiu'

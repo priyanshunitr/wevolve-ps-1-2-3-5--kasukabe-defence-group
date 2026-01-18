@@ -1,0 +1,4 @@
+Bcrypt version: 5.0.0
+Testing password: password123 (len: 11)
+Error hashing with passlib: password cannot be longer than 72 bytes, truncate manually if necessary (e.g. my_password[:72])
+Direct bcrypt hashed: b'$2b$12$AlWh2DEvymE2VpYkgi0iRuwNaFmFcLdBXxJH4HENBEF76cP1erotq'

@@ -7,9 +7,16 @@ Three Core Modules:
 2. Transparent Matching - Multi-factor job matching with explanations
 3. Actionable Growth - Personalized learning roadmaps
 """
+<<<<<<< HEAD
 from typing import Optional, List
+=======
+>>>>>>> main
 import json
+from pathlib import Path
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+<<<<<<< HEAD
 from fastapi import FastAPI, HTTPException, UploadFile, File, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -21,20 +28,28 @@ from .database import init_db, get_db
 # Import routers
 from .routers import resume, matching, roadmap
 from .skill_score import calculate_match
+=======
+from .config import settings
+from .db import init_db
+from .routers import resume, matching, roadmap, auth
 
-# Initialize FastAPI app
+# ============================================================
+# Application Setup
+# ============================================================
+>>>>>>> main
+
 app = FastAPI(
-    title="Wevolve API",
-    description="AI-Powered Career Acceleration Ecosystem",
-    version="1.0.0",
+    title=settings.APP_NAME,
+    description=settings.APP_DESCRIPTION,
+    version=settings.APP_VERSION,
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
-# CORS Configuration for React frontend
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # Vite & CRA defaults
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,9 +59,11 @@ app.add_middleware(
 app.include_router(resume.router)
 app.include_router(matching.router)
 app.include_router(roadmap.router)
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 
 # ============================================================
+<<<<<<< HEAD
 # Pydantic Schemas for API Request/Response
 # ============================================================
 
@@ -129,22 +146,26 @@ class RoadmapResponse(BaseModel):
 
 # ============================================================
 # Startup Event - Initialize Database
+=======
+# Lifecycle Events
+>>>>>>> main
 # ============================================================
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the database on application startup."""
+    """Initialize database on application startup."""
     print("🚀 Wevolve API Starting...")
     init_db()
     print("✅ Database initialized successfully!")
 
 
 # ============================================================
-# API Endpoints
+# Health Check Endpoints
 # ============================================================
 
-@app.get("/", response_model=HealthResponse)
+@app.get("/")
 async def root():
+<<<<<<< HEAD
     """Health check endpoint."""
     return HealthResponse(
         status="healthy",
@@ -214,12 +235,51 @@ async def calculate_skill_score(
         job_id=result["job_id"],
         job_title=result["job_title"]
     )
+=======
+    """Root endpoint - health check."""
+    try:
+        return {
+            "status": "ok",
+            "message": "Wevolve API is running",
+            "version": settings.APP_VERSION
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Health check failed: {str(e)}"
+        }
+
+
+@app.get("/health")
+async def health_check():
+    """Detailed health check with database connectivity test."""
+    try:
+        from .db import SessionLocal
+        from sqlalchemy import text
+        db = SessionLocal()
+        db.execute(text("SELECT 1"))
+        db.close()
+        
+        return {
+            "status": "ok",
+            "message": "All systems operational",
+            "database": "connected"
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": "Health check failed",
+            "error": str(e),
+            "database": "disconnected"
+        }
+>>>>>>> main
 
 
 # ============================================================
-# Module 2: Transparent Matching
+# Jobs API
 # ============================================================
 
+<<<<<<< HEAD
 @app.get("/api/jobs", response_model=List[JobPosting])
 async def get_all_jobs(db: Session = Depends(get_db)):
     """
@@ -249,74 +309,18 @@ async def calculate_matches(candidate_id: int):
     """
     Calculate match scores between a candidate and all available jobs.
     Returns detailed breakdown with explanations.
+=======
+@app.get("/api/jobs")
+async def get_jobs():
+    """
+    Return all available jobs from the jobs.json file.
+    """
+    jobs_file = Path(__file__).parent.parent / "data" / "jobs.json"
+>>>>>>> main
     
-    Scoring Weights:
-    - Skills: 40%
-    - Location: 20%
-    - Salary: 15%
-    - Experience: 15%
-    - Role: 10%
-    """
-    # Placeholder response - actual matching engine will be implemented
-    return [
-        MatchScore(
-            job_id=1,
-            job_title="Senior Python Developer",
-            company="TechCorp India",
-            total_score=78.5,
-            skills_score=85.0,
-            location_score=100.0,
-            salary_score=70.0,
-            experience_score=60.0,
-            role_score=75.0,
-            matching_skills=["Python", "FastAPI"],
-            missing_skills=["PostgreSQL", "Docker", "AWS"],
-            explanation="Strong skills match (85%). You have 2/5 required skills. Consider learning PostgreSQL and Docker to improve your match."
-        )
-    ]
-
-
-# ============================================================
-# Module 3: Actionable Growth (Roadmap Generation)
-# ============================================================
-
-@app.get("/api/roadmap/{candidate_id}/{job_id}", response_model=RoadmapResponse)
-async def generate_roadmap(candidate_id: int, job_id: int):
-    """
-    Generate a personalized learning roadmap based on skill gaps.
-    Uses skill dependency topology to order learning phases.
-    """
-    # Placeholder response - actual roadmap generation will be implemented
-    return RoadmapResponse(
-        target_role="Senior Python Developer",
-        missing_skills=["PostgreSQL", "Docker", "AWS"],
-        phases=[
-            LearningPhase(
-                phase=1,
-                title="Database Fundamentals",
-                skills=["PostgreSQL"],
-                estimated_weeks=3,
-                resources=["PostgreSQL Official Tutorial", "SQLZoo Exercises"]
-            ),
-            LearningPhase(
-                phase=2,
-                title="Containerization",
-                skills=["Docker"],
-                estimated_weeks=2,
-                resources=["Docker Getting Started", "Docker for Developers course"]
-            ),
-            LearningPhase(
-                phase=3,
-                title="Cloud Infrastructure",
-                skills=["AWS"],
-                estimated_weeks=4,
-                resources=["AWS Free Tier Labs", "AWS Certified Developer Guide"]
-            )
-        ],
-        total_estimated_weeks=9
-    )
-
-
-# ============================================================
-# Run with: uvicorn app.main:app --reload
-# ============================================================
+    try:
+        with open(jobs_file, 'r') as f:
+            data = json.load(f)
+            return {"jobs": data.get('jobs', [])}
+    except FileNotFoundError:
+        return {"jobs": []}

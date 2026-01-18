@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 """
 Transparent Matching Router
 Multi-Factor Job Matching Engine with Explainable Scores
@@ -15,89 +16,25 @@ from pathlib import Path
 from thefuzz import process, fuzz
 from fastapi import APIRouter, HTTPException, Depends, Query
 from pydantic import BaseModel
+=======
+from fastapi import APIRouter, HTTPException, Depends
+>>>>>>> main
 from sqlalchemy.orm import Session
 
-from ..database import get_db
-from ..models import Candidate, Job, MatchResult
+from ..db import get_db, JobPosting
+from ..schemas.matching import MatchRequest, MatchResponse, JobMatch
+from ..services.matching_service import MatchingEngine
 
-router = APIRouter(prefix="/api/match", tags=["Transparent Matching"])
+router = APIRouter(prefix="/api/matching", tags=["Transparent Matching"])
 
-
-# ============================================================
-# Pydantic Schemas
-# ============================================================
-
-class SkillMatch(BaseModel):
-    """Details about skill matching"""
-    skill: str
-    matched: bool
-    is_required: bool
+# Service instance
+engine = MatchingEngine()
 
 
-class MatchBreakdown(BaseModel):
-    """Detailed breakdown of a single match"""
-    job_id: int
-    job_title: str
-    company: str
-    location: str
-    salary_range: str
-    
-    # Overall Score
-    total_score: float  # 0-100
-    match_tier: str     # "Excellent", "Good", "Fair", "Poor"
-    
-    # Factor Scores (raw 0-100)
-    skills_score: float
-    location_score: float
-    salary_score: float
-    experience_score: float
-    role_score: float
-    
-    # Skill Details
-    matching_skills: List[str]
-    missing_required_skills: List[str]
-    missing_optional_skills: List[str]
-    skill_match_percentage: float
-    
-    # Human-readable explanation
-    explanation: str
-    top_reason_for_match: str
-    top_area_to_improve: str
-
-
-class MatchRequest(BaseModel):
-    """Request to calculate matches"""
-    candidate_skills: List[str]
-    candidate_location: Optional[str] = None
-    candidate_experience_years: Optional[float] = 0
-    expected_salary_min: Optional[int] = None
-    expected_salary_max: Optional[int] = None
-    target_role: Optional[str] = None
-
-
-# ============================================================
-# Scoring Weights (Configurable)
-# ============================================================
-
-WEIGHTS = {
-    'skills': 0.40,      # 40%
-    'location': 0.20,    # 20%
-    'salary': 0.15,      # 15%
-    'experience': 0.15,  # 15%
-    'role': 0.10         # 10%
-}
-
-
-# ============================================================
-# Scoring Functions
-# ============================================================
-
-def calculate_skills_score(
-    candidate_skills: List[str],
-    required_skills: List[str],
-    optional_skills: List[str] = []
-) -> tuple[float, List[str], List[str], List[str]]:
+@router.post("/calculate", response_model=MatchResponse)
+async def calculate_matches(request: MatchRequest, db: Session = Depends(get_db)):
     """
+<<<<<<< HEAD
     Calculate skills match score using fuzzy string matching.
     Required skills are weighted more heavily than optional.
     Threshold for a match is 85%.
@@ -444,109 +381,128 @@ async def calculate_matches(request: MatchRequest):
                 "nice_to_have_skills": ["Kubernetes", "Redis"]
             }
         ]
+=======
+    Match a candidate against all available jobs from the database.
+    Uses fuzzy matching for skills and roles.
+    """
+    # Load jobs from database
+    jobs = db.query(JobPosting).all()
+    
+    if not jobs:
+        raise HTTPException(status_code=404, detail="No job postings found in the database.")
+    
+    candidate_data = request.dict()
+    education_data = candidate_data.get('education') or {}
+    # Handle list of education entries vs single dict if necessary, but here we just want a field for logging
+    field = "Unknown"
+    if isinstance(education_data, list) and education_data:
+        field = education_data[0].get('field', 'Unknown')
+    elif isinstance(education_data, dict):
+        field = education_data.get('field', 'Unknown')
+    
+    # Visual console output
+    print(f"\n--- API Match Results for {field} Candidate ---")
+    print(f"Skills: {', '.join(candidate_data.get('skills', []))}")
+    print("-" * 50)
+>>>>>>> main
     
     results = []
     
     for job in jobs:
-        # Calculate each factor score
-        skills_score, matching, missing_req, missing_opt = calculate_skills_score(
-            request.candidate_skills,
-            job.get('required_skills', []),
-            job.get('nice_to_have_skills', [])
+        # Convert model to dict for matching service compatibility
+        job_data = {
+            "id": job.id,
+            "title": job.title,
+            "required_skills": job.required_skills,
+            "nice_to_have_skills": job.nice_to_have_skills,
+            "location": job.location,
+            "salary_min": job.salary_min,
+            "salary_max": job.salary_max,
+            "min_experience_years": job.min_experience_years
+        }
+
+        # 1. Skill Match
+        skill_score, matching, missing_req, missing_opt = engine.calculate_skills_score(
+            candidate_data.get('skills', []),
+            job_data.get('required_skills', []),
+            job_data.get('nice_to_have_skills', [])
         )
         
-        location_score = calculate_location_score(
-            request.candidate_location or "",
-            job.get('location', ''),
-            job.get('is_remote', False)
+        # 2. Location Match
+        location_score = engine.calculate_location_score(
+            candidate_data.get('preferred_locations', []),
+            job_data.get('location', '') or ''
         )
         
-        salary_score = calculate_salary_score(
-            request.expected_salary_min,
-            request.expected_salary_max,
-            job.get('salary_min'),
-            job.get('salary_max')
+        # 3. Salary Match
+        # Handle salary extraction from dict safely
+        exp_salary_data = candidate_data.get('expected_salary')
+        exp_salary_val = 0
+        if isinstance(exp_salary_data, dict):
+            exp_salary_val = exp_salary_data.get('min', 0)
+        elif isinstance(exp_salary_data, (int, float)):
+            exp_salary_val = exp_salary_data
+            
+        salary_score = engine.calculate_salary_score(
+            exp_salary_val,
+            job_data.get('salary_min') or 0,
+            job_data.get('salary_max') or 0
         )
         
-        experience_score = calculate_experience_score(
-            request.candidate_experience_years or 0,
-            job.get('min_experience_years', 0),
-            job.get('max_experience_years')
+        # 4. Experience Match
+        experience_score = engine.calculate_experience_score(
+            candidate_data.get('experience_years') or 0,
+            job_data.get('min_experience_years') or 0
         )
         
-        role_score = calculate_role_score(
-            request.target_role,
-            job.get('title', '')
+        # 5. Role Match
+        role_score = engine.calculate_role_score(
+            candidate_data.get('preferred_roles', []),
+            job_data.get('title', '')
         )
         
-        # Calculate total
-        total = calculate_total_score(
-            skills_score, location_score, salary_score,
-            experience_score, role_score
-        )
-        
-        # Calculate skill match percentage
-        all_required = job.get('required_skills', [])
-        skill_pct = (len(matching) / len(all_required) * 100) if all_required else 100
-        
-        breakdown = {
-            'job_id': job.get('id'),
-            'job_title': job.get('title'),
-            'company': job.get('company'),
-            'location': job.get('location', 'Not specified'),
-            'skills_score': round(skills_score, 1),
-            'location_score': round(location_score, 1),
-            'salary_score': round(salary_score, 1),
-            'experience_score': round(experience_score, 1),
-            'role_score': round(role_score, 1),
-            'matching_skills': matching,
-            'missing_required_skills': missing_req,
-            'missing_optional_skills': missing_opt,
-            'skill_match_percentage': round(skill_pct, 1)
+        # Prepare breakdown dict for total score and generation
+        temp_result = {
+            "job_id": job.id,
+            "job_title": job.title,
+            "missing_skills": missing_req,
+            "breakdown": {
+                "skill_match": skill_score,
+                "location_match": location_score,
+                "salary_match": salary_score,
+                "experience_match": experience_score,
+                "role_match": role_score
+            }
         }
         
-        # Generate explanations
-        explanation, top_reason, improve = generate_explanation(breakdown)
+        total_score = engine.calculate_total_score(temp_result['breakdown'])
+        explanation, top_reason, improve = engine.generate_explanation(temp_result)
         
-        # Format salary range
-        sal_min = job.get('salary_min', 0)
-        sal_max = job.get('salary_max', 0)
-        if sal_min and sal_max:
-            salary_range = f"₹{sal_min // 100000}L - ₹{sal_max // 100000}L"
-        else:
-            salary_range = "Not disclosed"
-        
-        results.append(MatchBreakdown(
-            **breakdown,
-            salary_range=salary_range,
-            total_score=total,
-            match_tier=get_match_tier(total),
+        job_match = JobMatch(
+            job_id=job.id,
+            job_title=job.title,
+            match_score=total_score,
+            match_tier=engine.get_match_tier(total_score),
+            breakdown=temp_result['breakdown'],
+            missing_skills=missing_req,
             explanation=explanation,
             top_reason_for_match=top_reason,
             top_area_to_improve=improve
-        ))
+        )
+        
+        # Console logging
+        print(f"Job: {job.title} (ID: {job.id})")
+        print(f"Score: {total_score}%")
+        print(f"Skill Match: {skill_score}% | Location: {location_score}% | Salary: {salary_score}%")
+        print("-" * 30)
+        
+        results.append(job_match)
     
-    # Sort by total score descending
-    results.sort(key=lambda x: x.total_score, reverse=True)
+    # Sort results by score descending
+    results.sort(key=lambda x: x.match_score, reverse=True)
     
-    return results
-
-
-@router.get("/weights")
-async def get_scoring_weights():
-    """Get the current scoring weights used for matching"""
-    return {
-        "weights": {
-            "skills": {"percentage": 40, "description": "Technical skill alignment"},
-            "location": {"percentage": 20, "description": "Geographic fit or remote compatibility"},
-            "salary": {"percentage": 15, "description": "Compensation expectations alignment"},
-            "experience": {"percentage": 15, "description": "Years of experience match"},
-            "role": {"percentage": 10, "description": "Job title and role type match"}
-        },
-        "tiers": {
-            "excellent": {"min_score": 85, "emoji": "⭐"},
-            "good": {"min_score": 70, "emoji": "✓"},
-            "fair": {"min_score": 50, "emoji": ""},
-            "poor": {"min_score": 0, "emoji": ""}
-        }
-    }
+    return MatchResponse(
+        candidate=candidate_data.get('full_name', 'Candidate'),
+        field=field,
+        matches=results
+    )
