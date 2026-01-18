@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ResumeProvider } from "@/contexts/ResumeContext";
 import { SavedJobsProvider } from "@/contexts/SavedJobsContext";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,15 +15,17 @@ export function Providers({ children }: { children: React.ReactNode }) {
     return (
         <QueryClientProvider client={queryClient}>
             <ThemeProvider>
-                <ResumeProvider>
-                    <SavedJobsProvider>
-                        <TooltipProvider>
-                            <Toaster />
-                            <Sonner />
-                            {children}
-                        </TooltipProvider>
-                    </SavedJobsProvider>
-                </ResumeProvider>
+                <AuthProvider>
+                    <ResumeProvider>
+                        <SavedJobsProvider>
+                            <TooltipProvider>
+                                <Toaster />
+                                <Sonner />
+                                {children}
+                            </TooltipProvider>
+                        </SavedJobsProvider>
+                    </ResumeProvider>
+                </AuthProvider>
             </ThemeProvider>
         </QueryClientProvider>
     );

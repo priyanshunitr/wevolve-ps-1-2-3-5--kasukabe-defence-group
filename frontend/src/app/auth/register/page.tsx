@@ -11,6 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const registerSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -25,14 +29,10 @@ const registerSchema = z.object({
 
 type RegisterValues = z.infer<typeof registerSchema>;
 
-import { useRouter } from "next/navigation";
-import { authService } from "@/services/auth";
-import { toast } from "sonner";
-// ... imports
-
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const form = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
@@ -50,8 +50,8 @@ export default function RegisterPage() {
       // 1. Register
       await authService.register(data);
 
-      // 2. Auto Login (optional, but good UX)
-      await authService.login({ email: data.email, password: data.password });
+      // 2. Auto Login using AuthContext
+      await login(data.email, data.password);
 
       toast.success("Account created successfully!");
       router.push("/");

@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const loginSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -19,14 +22,10 @@ const loginSchema = z.object({
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-import { useRouter } from "next/navigation";
-import { authService } from "@/services/auth";
-import { toast } from "sonner";
-// ... imports
-
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -39,14 +38,14 @@ export default function LoginPage() {
   async function onSubmit(data: LoginValues) {
     setIsLoading(true);
     try {
-      await authService.login(data);
+      await login(data.email, data.password);
       toast.success("Login successful!");
-      router.push("/"); // Redirect to home/dashboard
+      router.push("/");
     } catch (error: any) {
       console.error(error);
       toast.error(
         error.response?.data?.detail ||
-          "Login failed. Please check your credentials."
+        "Login failed. Please check your credentials."
       );
     } finally {
       setIsLoading(false);
