@@ -45,23 +45,46 @@ export default function GapAnalysisPage() {
   }, [selectedRole, currentSkills]);
 
   const radarData = useMemo(() => {
-    const categories = ['Frontend', 'Backend', 'DevOps', 'Database', 'Soft Skills', 'Architecture'];
+    // Extensive mapping to group specific skill categories into the 6 main axes
+    const categoryGroups: Record<string, string[]> = {
+      'Frontend': ['Frontend', 'Mobile', 'UI', 'Accessibility', 'State Management'],
+      'Backend': ['Backend', 'API', 'Security', 'Language', 'AI/ML'],
+      'DevOps': ['DevOps', 'Cloud', 'Tools', 'SRE'],
+      'Database': ['Database', 'Data', 'Data Analysis', 'ETL', 'Data Modeling'],
+      'Architecture': ['Architecture', 'Engineering', 'Methodology', 'Quality', 'System Design'],
+      'Soft Skills': ['Soft Skills', 'Leadership', 'Communication']
+    };
 
-    return categories.map(category => {
-      const relevantRequired = selectedRole.requiredSkills.filter(
-        skill => skillTaxonomy[skill]?.category === category ||
-          (category === 'Soft Skills' && ['Communication', 'Team Leadership', 'Agile'].includes(skill))
-      );
-      const relevantCurrent = currentSkills.filter(
-        skill => skillTaxonomy[skill]?.category === category ||
-          (category === 'Soft Skills' && ['Communication', 'Team Leadership', 'Agile'].includes(skill))
-      );
+    return Object.entries(categoryGroups).map(([axisName, categories]) => {
+      // Filter required skills that belong to any category in this group
+      const relevantRequired = selectedRole.requiredSkills.filter(skill => {
+        const skillInfo = skillTaxonomy[skill];
+        if (skillInfo) {
+          return categories.includes(skillInfo.category);
+        }
+        // Fallback for Soft Skills (check by name if category lookup fails)
+        if (axisName === 'Soft Skills') {
+          return ['Communication', 'Team Leadership', 'Agile'].includes(skill);
+        }
+        return false;
+      });
+
+      const relevantCurrent = currentSkills.filter(skill => {
+        const skillInfo = skillTaxonomy[skill];
+        if (skillInfo) {
+          return categories.includes(skillInfo.category);
+        }
+        if (axisName === 'Soft Skills') {
+          return ['Communication', 'Team Leadership', 'Agile'].includes(skill);
+        }
+        return false;
+      });
 
       return {
-        subject: category,
+        subject: axisName,
         required: relevantRequired.length > 0 ? 100 : 0,
-        current: relevantCurrent.length > 0
-          ? Math.min(100, (relevantCurrent.length / Math.max(1, relevantRequired.length)) * 100)
+        current: relevantRequired.length > 0
+          ? Math.min(100, Math.round((relevantCurrent.length / relevantRequired.length) * 100))
           : (relevantCurrent.length > 0 ? 50 : 0)
       };
     });
