@@ -2,45 +2,19 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Target, TrendingUp, BookOpen, ChevronDown, ChevronRight, Clock, Zap } from 'lucide-react';
+import { Target, TrendingUp, BookOpen, ChevronDown, ChevronRight, Clock, Zap, Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Layout from '@/components/layout/Layout';
 import SkillBadge from '@/components/common/SkillBadge';
 import MatchScoreRing from '@/components/common/MatchScoreRing';
-import { useResume, ParsedResumeFrontend } from '@/contexts/ResumeContext';
+import { useResume } from '@/contexts/ResumeContext';
 import { targetRoles, skillTaxonomy } from '@/data/mockData';
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer, Legend } from 'recharts';
-
-// Sample data for when no resume has been parsed
-const sampleParsedResume: ParsedResumeFrontend = {
-  name: 'Alex Johnson',
-  email: 'alex.johnson@email.com',
-  phone: '(555) 123-4567',
-  skills: [
-    { name: 'React', confidence: 95 },
-    { name: 'JavaScript', confidence: 92 },
-    { name: 'TypeScript', confidence: 88 },
-    { name: 'CSS', confidence: 90 },
-    { name: 'Node.js', confidence: 75 },
-    { name: 'Git', confidence: 85 },
-    { name: 'REST APIs', confidence: 82 }
-  ],
-  experience: [],
-  education: [],
-  projects: [],
-  preferredLocations: [],
-  preferredRoles: [],
-  expectedSalary: null,
-  nameConfidence: 98,
-  emailConfidence: 95,
-  phoneConfidence: 72,
-  yearsOfExperience: 4
-};
+import Link from 'next/link';
 
 export default function GapAnalysisPage() {
   const { parsedResume } = useResume();
-  const resume = parsedResume || sampleParsedResume;
   const [selectedRoleId, setSelectedRoleId] = useState<string>('senior-frontend');
   const [expandedPhase, setExpandedPhase] = useState<number | null>(0);
 
@@ -49,15 +23,16 @@ export default function GapAnalysisPage() {
   }, [selectedRoleId]);
 
   const currentSkills = useMemo(() => {
-    return resume.skills.map(s => s.name);
-  }, [resume]);
+    if (!parsedResume) return [];
+    return parsedResume.skills.map(s => s.name);
+  }, [parsedResume]);
 
   const analysis = useMemo(() => {
     const required = selectedRole.requiredSkills;
     const matched = currentSkills.filter(s => required.includes(s));
     const missing = required.filter(s => !currentSkills.includes(s));
 
-    const gapPercentage = Math.round((missing.length / required.length) * 100);
+    const gapPercentage = required.length > 0 ? Math.round((missing.length / required.length) * 100) : 0;
     const readinessScore = Math.round(100 - gapPercentage);
 
     return {
@@ -140,6 +115,54 @@ export default function GapAnalysisPage() {
 
     return phases;
   }, [analysis.missing]);
+
+  // Show upload prompt if no resume has been parsed
+  if (!parsedResume) {
+    return (
+      <Layout>
+        <div className="py-8">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-center mb-10"
+            >
+              <h1 className="text-3xl md:text-4xl font-bold mb-4">Skills Gap Analysis</h1>
+              <p className="text-muted-foreground max-w-xl mx-auto">
+                See how your current skills compare to your target role
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+              className="max-w-lg mx-auto"
+            >
+              <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-primary/10 flex items-center justify-center">
+                  <FileText className="w-10 h-10 text-primary" />
+                </div>
+                <h2 className="text-2xl font-semibold mb-3">No Resume Uploaded</h2>
+                <p className="text-muted-foreground mb-6">
+                  To analyze your skill gaps, please upload your resume first. We&apos;ll extract your skills and compare them against your target role requirements.
+                </p>
+                <Link href="/upload">
+                  <Button size="lg" className="gap-2">
+                    <Upload className="w-5 h-5" />
+                    Upload Your Resume
+                  </Button>
+                </Link>
+                <p className="text-sm text-muted-foreground mt-4">
+                  Supported formats: PDF, DOCX, DOC
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>

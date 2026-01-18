@@ -29,9 +29,55 @@ import { mockJobs, Job } from "@/data/mockData";
 import { getJobs, calculateMatches, APIError } from "@/services/api";
 import { JobAPI } from "@/types/api";
 import { useResume } from "@/contexts/ResumeContext";
+import { useSavedJobs } from "@/contexts/SavedJobsContext";
+
+// Calculate match score based on resume skills
+function calculateLocalMatchScore(
+  jobSkills: string[],
+  candidateSkills: string[]
+): { matchScore: number; missingSkills: string[] } {
+  if (candidateSkills.length === 0 || jobSkills.length === 0) {
+    return { matchScore: 0, missingSkills: jobSkills };
+  }
+
+  const normalizedJobSkills = jobSkills.map((s) => s.toLowerCase());
+  const normalizedCandidateSkills = candidateSkills.map((s) => s.toLowerCase());
+
+  const matchedSkills = normalizedJobSkills.filter((skill) =>
+    normalizedCandidateSkills.some(
+      (cs) => cs.includes(skill) || skill.includes(cs)
+    )
+  );
+
+  const missingSkills = jobSkills.filter(
+    (skill, idx) => !matchedSkills.includes(normalizedJobSkills[idx])
+  );
+
+  const matchScore = Math.round((matchedSkills.length / jobSkills.length) * 100);
+  return { matchScore, missingSkills };
+}
 
 // Transform API job to frontend Job format
-function transformApiJobToFrontend(apiJob: JobAPI, matchResult?: any): Job {
+function transformApiJobToFrontend(
+  apiJob: JobAPI,
+  candidateSkills: string[],
+  matchResult?: any
+): Job {
+  const allJobSkills = [...apiJob.required_skills, ...apiJob.nice_to_have_skills];
+
+  // Use API match result if available, otherwise calculate locally
+  let matchScore = 0; // Default to 0 when no resume
+  let missingSkills: string[] = apiJob.required_skills; // All skills are missing without a resume
+
+  if (matchResult?.match_score !== undefined) {
+    matchScore = matchResult.match_score;
+    missingSkills = matchResult.missing_skills || [];
+  } else if (candidateSkills.length > 0) {
+    const localMatch = calculateLocalMatchScore(apiJob.required_skills, candidateSkills);
+    matchScore = localMatch.matchScore;
+    missingSkills = localMatch.missingSkills;
+  }
+
   return {
     id: String(apiJob.id),
     title: apiJob.title,
@@ -41,16 +87,34 @@ function transformApiJobToFrontend(apiJob: JobAPI, matchResult?: any): Job {
       min: apiJob.salary_min,
       max: apiJob.salary_max,
     },
-    skills: [...apiJob.required_skills, ...apiJob.nice_to_have_skills],
+    skills: allJobSkills,
     type: apiJob.is_remote ? "Remote" : "Full-time",
     experience: apiJob.min_experience_years,
     description: apiJob.description,
-    matchScore: matchResult?.match_score || 70,
+    matchScore,
     postedDate: new Date(),
-    missingSkills: matchResult?.missing_skills,
+    missingSkills,
     explanation: matchResult?.explanation,
     topReason: matchResult?.top_reason_for_match,
     topImprovement: matchResult?.top_area_to_improve,
+  };
+}
+
+// Transform mock job to include calculated match score
+function transformMockJobWithScore(job: Job, candidateSkills: string[]): Job {
+  if (candidateSkills.length === 0) {
+    return { ...job, matchScore: 0, missingSkills: job.skills };
+  }
+
+  const { matchScore, missingSkills } = calculateLocalMatchScore(
+    job.skills,
+    candidateSkills
+  );
+
+  return {
+    ...job,
+    matchScore,
+    missingSkills,
   };
 }
 
@@ -70,7 +134,16 @@ export default function JobsPage() {
     skills: [],
     jobTypes: [],
     postedDate: "all",
+    showLikedOnly: false,
   });
+
+  // Get saved jobs
+  const { savedJobs, isJobSaved } = useSavedJobs();
+
+  // Get candidate skills from parsed resume
+  const candidateSkills = useMemo(() => {
+    return parsedResume?.skills.map((s) => s.name) || [];
+  }, [parsedResume]);
 
   // Fetch jobs from API on mount
   useEffect(() => {
@@ -81,9 +154,6 @@ export default function JobsPage() {
       try {
         // Fetch jobs from backend
         const response = await getJobs();
-
-        // Get candidate skills for matching
-        const candidateSkills = parsedResume?.skills.map((s) => s.name) || [];
 
         // If we have candidate skills, calculate match scores
         let jobsWithScores: Job[] = [];
@@ -101,31 +171,37 @@ export default function JobsPage() {
               const matchResult = matchResponse.matches.find(
                 (m: any) => m.job_id === apiJob.id
               );
-              return transformApiJobToFrontend(apiJob, matchResult);
+              return transformApiJobToFrontend(apiJob, candidateSkills, matchResult);
             });
           } catch {
-            // If matching fails, just use default scores
+            // If matching fails, calculate locally
             jobsWithScores = response.jobs.map((apiJob) =>
-              transformApiJobToFrontend(apiJob, 70)
+              transformApiJobToFrontend(apiJob, candidateSkills)
             );
           }
         } else {
-          // No resume parsed, use default scores
+          // No resume parsed, calculate with empty skills
           jobsWithScores = response.jobs.map((apiJob) =>
-            transformApiJobToFrontend(apiJob, 70)
+            transformApiJobToFrontend(apiJob, candidateSkills)
           );
         }
 
         // If API returned no jobs, fall back to mock data
         if (jobsWithScores.length === 0) {
-          setJobs(mockJobs);
+          const transformedMockJobs = mockJobs.map((job) =>
+            transformMockJobWithScore(job, candidateSkills)
+          );
+          setJobs(transformedMockJobs);
         } else {
           setJobs(jobsWithScores);
         }
       } catch (err) {
         console.error("Failed to fetch jobs:", err);
-        // Fall back to mock data on error
-        setJobs(mockJobs);
+        // Fall back to mock data on error, but still calculate scores
+        const transformedMockJobs = mockJobs.map((job) =>
+          transformMockJobWithScore(job, candidateSkills)
+        );
+        setJobs(transformedMockJobs);
         if (err instanceof APIError) {
           setError(err.message);
         }
@@ -135,7 +211,7 @@ export default function JobsPage() {
     }
 
     fetchJobs();
-  }, [parsedResume]);
+  }, [parsedResume, candidateSkills]);
 
   const filteredJobs = useMemo(() => {
     let result = [...jobs];
@@ -183,6 +259,11 @@ export default function JobsPage() {
       result = result.filter((job) => filters.jobTypes.includes(job.type));
     }
 
+    // Liked jobs filter
+    if (filters.showLikedOnly) {
+      result = result.filter((job) => isJobSaved(job.id));
+    }
+
     // Sort
     switch (sortBy) {
       case "match":
@@ -200,7 +281,7 @@ export default function JobsPage() {
     }
 
     return result;
-  }, [search, filters, sortBy, jobs]);
+  }, [search, filters, sortBy, jobs, isJobSaved]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -210,6 +291,7 @@ export default function JobsPage() {
     if (filters.experience[0] > 0 || filters.experience[1] < 10) count++;
     if (filters.salary[0] > 0 || filters.salary[1] < 300000) count++;
     if (filters.postedDate !== "all") count++;
+    if (filters.showLikedOnly) count++;
     return count;
   }, [filters]);
 
@@ -343,6 +425,7 @@ export default function JobsPage() {
                       skills: [],
                       jobTypes: [],
                       postedDate: "all",
+                      showLikedOnly: false,
                     })
                   }
                   className="text-sm text-primary hover:underline"
@@ -417,6 +500,7 @@ export default function JobsPage() {
                             skills: [],
                             jobTypes: [],
                             postedDate: "all",
+                            showLikedOnly: false,
                           });
                         }}
                       >

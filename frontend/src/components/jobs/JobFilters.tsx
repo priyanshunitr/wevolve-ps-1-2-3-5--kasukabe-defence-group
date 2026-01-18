@@ -1,10 +1,11 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, MapPin, Briefcase, Clock, Filter } from 'lucide-react';
+import { X, MapPin, Briefcase, Clock, Filter, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
+import { useSavedJobs } from '@/contexts/SavedJobsContext';
 
 export interface FilterState {
   locations: string[];
@@ -13,6 +14,7 @@ export interface FilterState {
   skills: string[];
   jobTypes: string[];
   postedDate: string;
+  showLikedOnly: boolean;
 }
 
 interface JobFiltersProps {
@@ -74,11 +76,14 @@ const JobFilters: React.FC<JobFiltersProps> = ({
       salary: [0, 300000],
       skills: [],
       jobTypes: [],
-      postedDate: 'all'
+      postedDate: 'all',
+      showLikedOnly: false
     });
   };
 
-  const hasActiveFilters = 
+  const { savedJobs } = useSavedJobs();
+
+  const hasActiveFilters =
     filters.locations.length > 0 ||
     filters.skills.length > 0 ||
     filters.jobTypes.length > 0 ||
@@ -86,7 +91,8 @@ const JobFilters: React.FC<JobFiltersProps> = ({
     filters.experience[1] < 10 ||
     filters.salary[0] > 0 ||
     filters.salary[1] < 300000 ||
-    filters.postedDate !== 'all';
+    filters.postedDate !== 'all' ||
+    filters.showLikedOnly;
 
   return (
     <div className="space-y-6">
@@ -107,6 +113,34 @@ const JobFilters: React.FC<JobFiltersProps> = ({
           Clear all filters
         </Button>
       )}
+
+      {/* Liked Jobs Filter */}
+      <div>
+        <label
+          className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${filters.showLikedOnly
+              ? 'bg-destructive/10 border-2 border-destructive/30'
+              : 'bg-muted/50 border-2 border-transparent hover:bg-muted'
+            }`}
+        >
+          <Checkbox
+            checked={filters.showLikedOnly}
+            onCheckedChange={(checked) =>
+              onFilterChange({ ...filters, showLikedOnly: checked as boolean })
+            }
+          />
+          <Heart className={`w-5 h-5 ${filters.showLikedOnly ? 'text-destructive fill-destructive' : 'text-muted-foreground'}`} />
+          <span className="font-medium flex-1">Liked Jobs</span>
+          {savedJobs.length > 0 && (
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${filters.showLikedOnly
+                ? 'bg-destructive text-destructive-foreground'
+                : 'bg-muted-foreground/20 text-muted-foreground'
+              }`}>
+              {savedJobs.length}
+            </span>
+          )}
+        </label>
+      </div>
+
 
       {/* Location Filter */}
       <div>
@@ -179,11 +213,10 @@ const JobFilters: React.FC<JobFiltersProps> = ({
             <button
               key={skill}
               onClick={() => toggleSkill(skill)}
-              className={`px-3 py-1 rounded-full text-sm transition-all ${
-                filters.skills.includes(skill)
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted hover:bg-muted/80'
-              }`}
+              className={`px-3 py-1 rounded-full text-sm transition-all ${filters.skills.includes(skill)
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted hover:bg-muted/80'
+                }`}
             >
               {skill}
             </button>
