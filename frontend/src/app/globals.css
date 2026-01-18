@@ -40,12 +40,23 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
   }
+
   @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
   }
 }
 
@@ -87,6 +98,12 @@
     --warning-foreground: 0 0% 9%;
     --info: 199 89% 48%;
     --info-foreground: 0 0% 100%;
+
+    --chart-1: 220 14% 60%;
+    --chart-2: 243 75% 58%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 152 76% 40%;
+    --chart-5: 0 72% 50%;
   }
 
   .dark {
@@ -124,6 +141,12 @@
     --warning-foreground: 0 0% 9%;
     --info: 199 89% 58%;
     --info-foreground: 0 0% 100%;
+
+    --chart-1: 220 14% 60%;
+    --chart-2: 243 75% 58%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 152 76% 50%;
+    --chart-5: 0 72% 50%;
   }
 }
 
@@ -131,6 +154,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }

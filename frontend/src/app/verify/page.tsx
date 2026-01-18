@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { FileText, Plus, Trash2, CheckCircle2 } from 'lucide-react';
@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/layout/Layout';
 import ConfidenceBadge from '@/components/common/ConfidenceBadge';
 import SkillBadge from '@/components/common/SkillBadge';
+import FireEffect from '@/components/common/FireEffect';
 import { useResume, ParsedResumeFrontend, transformFrontendToApi } from '@/contexts/ResumeContext';
 import { saveResume, APIError } from '@/services/api';
 
@@ -82,6 +83,16 @@ export default function VerifyPage() {
   const [formData, setFormData] = useState<ParsedResumeFrontend>(parsedResume || sampleParsedResume);
   const [newSkill, setNewSkill] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resumeFile && resumeFile.type === 'application/pdf') {
+      const url = URL.createObjectURL(resumeFile);
+      setFileUrl(url);
+      return () => URL.revokeObjectURL(url);
+    }
+    setFileUrl(null);
+  }, [resumeFile]);
 
   useEffect(() => {
     if (!parsedResume) {
@@ -155,7 +166,7 @@ export default function VerifyPage() {
           </motion.div>
 
           <div className="grid lg:grid-cols-2 gap-8">
-            {/* PDF Preview Placeholder */}
+            {/* Document Preview */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -165,16 +176,54 @@ export default function VerifyPage() {
                 <FileText className="w-5 h-5 text-primary" />
                 <h2 className="font-semibold">Original Document</h2>
               </div>
-              <div className="bg-muted/50 rounded-xl h-[calc(100%-40px)] flex items-center justify-center">
-                <div className="text-center p-8">
-                  <FileText className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {resumeFile ? resumeFile.name : 'Sample Resume Preview'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-2">
-                    PDF viewer would display here
-                  </p>
-                </div>
+              <div className="bg-muted/50 rounded-xl h-[calc(100%-40px)] overflow-hidden">
+                {resumeFile ? (
+                  resumeFile.type === 'application/pdf' ? (
+                    // PDF Preview using object element
+                    <object
+                      data={fileUrl || ''}
+                      type="application/pdf"
+                      className="w-full h-full rounded-xl"
+                    >
+                      <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                        <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground mb-2">Unable to display PDF</p>
+                        <a
+                          href={fileUrl || ''}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          Open in new tab
+                        </a>
+                      </div>
+                    </object>
+                  ) : (
+                    // DOCX Preview - can't be displayed directly in browser
+                    <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                      <div className="w-20 h-20 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
+                        <FileText className="w-10 h-10 text-blue-500" />
+                      </div>
+                      <p className="font-medium text-lg mb-1">{resumeFile.name}</p>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {(resumeFile.size / 1024 / 1024).toFixed(2)} MB • Word Document
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-4 max-w-xs">
+                        Word document preview is not available in browser.
+                        The document has been parsed successfully.
+                      </p>
+                    </div>
+                  )
+                ) : (
+                  // No file uploaded - show sample placeholder
+                  <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                    <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">Sample Resume Preview</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Upload a resume to see the preview
+                    </p>
+                  </div>
+                )}
               </div>
             </motion.div>
 
@@ -189,42 +238,48 @@ export default function VerifyPage() {
               <div className="space-y-6">
                 {/* Basic Info */}
                 <div className="space-y-4">
-                  <div className={`p-4 rounded-xl ${formData.nameConfidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <ConfidenceBadge confidence={formData.nameConfidence} />
+                  <FireEffect active={formData.nameConfidence < 60} intensity={formData.nameConfidence < 40 ? 'high' : 'medium'}>
+                    <div className={`p-4 rounded-xl ${formData.nameConfidence < 60 ? 'bg-orange-500/10 border border-orange-500/30' : formData.nameConfidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="name">Full Name</Label>
+                        <ConfidenceBadge confidence={formData.nameConfidence} />
+                      </div>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      />
                     </div>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                    />
-                  </div>
+                  </FireEffect>
 
-                  <div className={`p-4 rounded-xl ${formData.emailConfidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label htmlFor="email">Email</Label>
-                      <ConfidenceBadge confidence={formData.emailConfidence} />
+                  <FireEffect active={formData.emailConfidence < 60} intensity={formData.emailConfidence < 40 ? 'high' : 'medium'}>
+                    <div className={`p-4 rounded-xl ${formData.emailConfidence < 60 ? 'bg-orange-500/10 border border-orange-500/30' : formData.emailConfidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="email">Email</Label>
+                        <ConfidenceBadge confidence={formData.emailConfidence} />
+                      </div>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      />
                     </div>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                    />
-                  </div>
+                  </FireEffect>
 
-                  <div className={`p-4 rounded-xl ${formData.phoneConfidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <Label htmlFor="phone">Phone</Label>
-                      <ConfidenceBadge confidence={formData.phoneConfidence} />
+                  <FireEffect active={formData.phoneConfidence < 60} intensity={formData.phoneConfidence < 40 ? 'high' : 'medium'}>
+                    <div className={`p-4 rounded-xl ${formData.phoneConfidence < 60 ? 'bg-orange-500/10 border border-orange-500/30' : formData.phoneConfidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="phone">Phone</Label>
+                        <ConfidenceBadge confidence={formData.phoneConfidence} />
+                      </div>
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      />
                     </div>
-                    <Input
-                      id="phone"
-                      value={formData.phone}
-                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                    />
-                  </div>
+                  </FireEffect>
                 </div>
 
                 {/* Skills */}
@@ -256,66 +311,202 @@ export default function VerifyPage() {
 
                 {/* Experience */}
                 <div className="space-y-4">
-                  <Label>Work Experience</Label>
-                  {formData.experience.map((exp, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className={`p-4 rounded-xl ${exp.confidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
+                  <div className="flex items-center justify-between">
+                    <Label>Work Experience</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        experience: [...prev.experience, { title: '', company: '', duration: '', description: '', confidence: 100 }]
+                      }))}
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium">{exp.title} at {exp.company}</span>
-                        <ConfidenceBadge confidence={exp.confidence} />
-                      </div>
-                      <p className="text-sm text-muted-foreground">{exp.duration}</p>
-                      <p className="text-sm mt-2">{exp.description}</p>
-                    </motion.div>
+                      <Plus className="w-4 h-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  {formData.experience.map((exp, index) => (
+                    <FireEffect key={index} active={exp.confidence < 60} intensity={exp.confidence < 40 ? 'high' : 'medium'}>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={`p-4 rounded-xl space-y-3 ${exp.confidence < 60 ? 'bg-orange-500/10 border border-orange-500/30' : exp.confidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <ConfidenceBadge confidence={exp.confidence} />
+                          <button
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              experience: prev.experience.filter((_, i) => i !== index)
+                            }))}
+                            className="p-1 rounded hover:bg-destructive/10 text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="Job Title"
+                            value={exp.title}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              experience: prev.experience.map((ex, i) => i === index ? { ...ex, title: e.target.value } : ex)
+                            }))}
+                          />
+                          <Input
+                            placeholder="Company"
+                            value={exp.company}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              experience: prev.experience.map((ex, i) => i === index ? { ...ex, company: e.target.value } : ex)
+                            }))}
+                          />
+                        </div>
+                        <Input
+                          placeholder="Duration (e.g., 2020 - Present)"
+                          value={exp.duration}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            experience: prev.experience.map((ex, i) => i === index ? { ...ex, duration: e.target.value } : ex)
+                          }))}
+                        />
+                        <Input
+                          placeholder="Description"
+                          value={exp.description}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            experience: prev.experience.map((ex, i) => i === index ? { ...ex, description: e.target.value } : ex)
+                          }))}
+                        />
+                      </motion.div>
+                    </FireEffect>
                   ))}
                 </div>
 
                 {/* Education */}
                 <div className="space-y-4">
-                  <Label>Education</Label>
-                  {formData.education.map((edu, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className={`p-4 rounded-xl ${edu.confidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
+                  <div className="flex items-center justify-between">
+                    <Label>Education</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        education: [...prev.education, { degree: '', institution: '', year: '', confidence: 100 }]
+                      }))}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{edu.degree}</span>
-                        <ConfidenceBadge confidence={edu.confidence} />
-                      </div>
-                      <p className="text-sm text-muted-foreground">{edu.institution} • {edu.year}</p>
-                    </motion.div>
+                      <Plus className="w-4 h-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  {formData.education.map((edu, index) => (
+                    <FireEffect key={index} active={edu.confidence < 60} intensity={edu.confidence < 40 ? 'high' : 'medium'}>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={`p-4 rounded-xl space-y-3 ${edu.confidence < 60 ? 'bg-orange-500/10 border border-orange-500/30' : edu.confidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <ConfidenceBadge confidence={edu.confidence} />
+                          <button
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              education: prev.education.filter((_, i) => i !== index)
+                            }))}
+                            className="p-1 rounded hover:bg-destructive/10 text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <Input
+                          placeholder="Degree (e.g., B.S. Computer Science)"
+                          value={edu.degree}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            education: prev.education.map((ed, i) => i === index ? { ...ed, degree: e.target.value } : ed)
+                          }))}
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <Input
+                            placeholder="Institution"
+                            value={edu.institution}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              education: prev.education.map((ed, i) => i === index ? { ...ed, institution: e.target.value } : ed)
+                            }))}
+                          />
+                          <Input
+                            placeholder="Year (e.g., 2020)"
+                            value={edu.year}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              education: prev.education.map((ed, i) => i === index ? { ...ed, year: e.target.value } : ed)
+                            }))}
+                          />
+                        </div>
+                      </motion.div>
+                    </FireEffect>
                   ))}
                 </div>
 
                 {/* Projects */}
                 <div className="space-y-4">
-                  <Label>Projects</Label>
-                  {formData.projects.map((project, index) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className={`p-4 rounded-xl ${project.confidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
+                  <div className="flex items-center justify-between">
+                    <Label>Projects</Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFormData(prev => ({
+                        ...prev,
+                        projects: [...prev.projects, { name: '', description: '', technologies: [], confidence: 100 }]
+                      }))}
                     >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium">{project.name}</span>
-                        <ConfidenceBadge confidence={project.confidence} />
-                      </div>
-                      <p className="text-sm text-muted-foreground mb-2">{project.description}</p>
-                      <div className="flex flex-wrap gap-1">
-                        {project.technologies.map((tech, i) => (
-                          <span key={i} className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">
-                            {tech}
-                          </span>
-                        ))}
-                      </div>
-                    </motion.div>
+                      <Plus className="w-4 h-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  {formData.projects.map((project, index) => (
+                    <FireEffect key={index} active={project.confidence < 60} intensity={project.confidence < 40 ? 'high' : 'medium'}>
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className={`p-4 rounded-xl space-y-3 ${project.confidence < 60 ? 'bg-orange-500/10 border border-orange-500/30' : project.confidence < 70 ? 'bg-warning/10 border border-warning/30' : 'bg-muted/30'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <ConfidenceBadge confidence={project.confidence} />
+                          <button
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              projects: prev.projects.filter((_, i) => i !== index)
+                            }))}
+                            className="p-1 rounded hover:bg-destructive/10 text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <Input
+                          placeholder="Project Name"
+                          value={project.name}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            projects: prev.projects.map((p, i) => i === index ? { ...p, name: e.target.value } : p)
+                          }))}
+                        />
+                        <Input
+                          placeholder="Description"
+                          value={project.description}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            projects: prev.projects.map((p, i) => i === index ? { ...p, description: e.target.value } : p)
+                          }))}
+                        />
+                        <Input
+                          placeholder="Technologies (comma separated, e.g., React, Node.js, MongoDB)"
+                          value={project.technologies.join(', ')}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            projects: prev.projects.map((p, i) => i === index ? { ...p, technologies: e.target.value.split(',').map(t => t.trim()).filter(t => t) } : p)
+                          }))}
+                        />
+                      </motion.div>
+                    </FireEffect>
                   ))}
                 </div>
               </div>

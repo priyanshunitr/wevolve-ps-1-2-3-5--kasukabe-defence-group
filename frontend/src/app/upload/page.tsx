@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload as UploadIcon, FileText, X, CheckCircle2, AlertCircle } from 'lucide-react';
@@ -18,8 +18,18 @@ export default function UploadPage() {
     const [uploadProgress, setUploadProgress] = useState(0);
     const [isUploading, setIsUploading] = useState(false);
     const [error, setLocalError] = useState<string | null>(null);
+    const [fileUrl, setFileUrl] = useState<string | null>(null);
 
     const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+
+    useEffect(() => {
+        if (file && file.type === 'application/pdf') {
+            const url = URL.createObjectURL(file);
+            setFileUrl(url);
+            return () => URL.revokeObjectURL(url);
+        }
+        setFileUrl(null);
+    }, [file]);
 
     const handleDragOver = useCallback((e: React.DragEvent) => {
         e.preventDefault();
@@ -147,8 +157,8 @@ export default function UploadPage() {
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
                                     className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer ${isDragging
-                                            ? 'border-primary bg-primary/5'
-                                            : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                                        ? 'border-primary bg-primary/5'
+                                        : 'border-border hover:border-primary/50 hover:bg-muted/50'
                                         }`}
                                 >
                                     <input
@@ -198,6 +208,44 @@ export default function UploadPage() {
                                             >
                                                 <X className="w-5 h-5 text-muted-foreground" />
                                             </button>
+                                        )}
+                                    </div>
+
+                                    {/* Document Preview */}
+                                    <div className="border border-border rounded-xl h-[500px] overflow-hidden bg-background">
+                                        {file.type === 'application/pdf' ? (
+                                            <object
+                                                data={fileUrl || ''}
+                                                type="application/pdf"
+                                                className="w-full h-full"
+                                            >
+                                                <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-muted/20">
+                                                    <FileText className="w-16 h-16 text-muted-foreground mb-4" />
+                                                    <p className="text-muted-foreground mb-2">Unable to display PDF directly</p>
+                                                    <a
+                                                        href={fileUrl || ''}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-primary hover:underline"
+                                                    >
+                                                        Open in new tab
+                                                    </a>
+                                                </div>
+                                            </object>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-full p-8 text-center bg-muted/5">
+                                                <div className="w-20 h-20 rounded-2xl bg-blue-500/10 flex items-center justify-center mb-4">
+                                                    <FileText className="w-10 h-10 text-blue-500" />
+                                                </div>
+                                                <h3 className="font-medium text-lg mb-1">{file.name}</h3>
+                                                <p className="text-sm text-muted-foreground mb-4">
+                                                    {(file.size / 1024 / 1024).toFixed(2)} MB • Word Document
+                                                </p>
+                                                <p className="text-sm text-muted-foreground max-w-xs bg-muted/50 p-4 rounded-lg">
+                                                    Word document preview is not available in browser.
+                                                    Click "Parse Resume" to process and view extracted data.
+                                                </p>
+                                            </div>
                                         )}
                                     </div>
 
