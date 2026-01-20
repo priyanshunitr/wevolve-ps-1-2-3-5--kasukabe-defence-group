@@ -5,9 +5,14 @@ from sqlalchemy.orm import sessionmaker
 from ..config import settings
 
 # Create engine with SQLite-specific configuration
+# Create engine with database-specific configuration
+connect_args = {}
+if settings.DATABASE_URL.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False}  # Required for SQLite
+    connect_args=connect_args
 )
 
 # Session factory

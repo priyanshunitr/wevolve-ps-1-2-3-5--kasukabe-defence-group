@@ -1,2 +1,0 @@
-200
-{'status': 'ok', 'message': 'All systems operational', 'database': 'connected'}

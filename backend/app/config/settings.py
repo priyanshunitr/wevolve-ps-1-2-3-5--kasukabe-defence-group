@@ -2,8 +2,8 @@
 Application Settings & Configuration
 Centralized configuration management for Wevolve API
 """
+import os
 from typing import List
-
 
 class Settings:
     """Application settings - can be extended to use environment variables"""
@@ -14,7 +14,13 @@ class Settings:
     APP_VERSION: str = "1.0.0"
     
     # Database
-    DATABASE_URL: str = "sqlite:///./wevolve.db"
+    # Render provides DATABASE_URL, fallback to local SQLite
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_0CKXwm5fiMNk@ep-damp-field-a15xjbgu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+    # DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./wevolve.db")
+    
+    # Fix for SQLAlchemy using postgres:// (deprecated) instead of postgresql://
+    if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
     
     # CORS Origins
     CORS_ORIGINS: List[str] = [
@@ -23,6 +29,7 @@ class Settings:
         "http://localhost:3001",  # Next.js on port 3001
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        "https://wevolve-frontend.onrender.com" # Add your production frontend URL here
     ]
     
     # Matching Engine Weights
