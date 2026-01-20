@@ -15,7 +15,7 @@ class Settings:
     
     # Database
     # Render provides DATABASE_URL, fallback to local SQLite
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_0CKXwm5fiMNk@ep-damp-field-a15xjbgu-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./wevolve.db")
     # DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./wevolve.db")
     
     # Fix for SQLAlchemy using postgres:// (deprecated) instead of postgresql://
