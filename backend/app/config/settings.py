@@ -24,12 +24,8 @@ class Settings:
     
     # CORS Origins
     CORS_ORIGINS: List[str] = [
-        "http://localhost:5173",  # Vite default
-        "http://localhost:3000",  # CRA default
-        "http://localhost:3001",  # Next.js on port 3001
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:3001",
-        "https://wevolve-frontend.onrender.com" # Add your production frontend URL here
+        "http://localhost:3000",
+        "https://wevolve-ps-1-2-3-5-kasukabe-defence.vercel.app"
     ]
     
     # Matching Engine Weights
